@@ -15,7 +15,15 @@ Author: [`Hao Mai`](https://www.uogeophysics.com/authors/mai/)(Developer and Mai
 
 ## Installation
 
-### Conda environment
+### Installing from GitHub source
+
+Download or clone the repository:
+```bash
+git clone https://github.com/maihao14/BlocklyEQTransformer.git
+cd BlocklyEQTransformer
+```
+
+### Create New Conda Environment
 
 We recommend creating a custom
 [conda environment](https://conda.io/docs/user-guide/tasks/manage-environments.html)
@@ -33,20 +41,19 @@ conda create -n bet python=3.7
 conda activate bet
 ```
 
+- Install recommended dependencies:
 
-### Installing from source
-
-Download or clone the repository:
 ```bash
-git clone https://github.com/maihao14/BlocklyEQTransformer.git
-cd BlocklyEQTransformer
+ conda env create -f environment.yml
 ```
+
+- Install `BlocklyEQTransformer` using `pip`:
 
 ```bash
 pip install -e .
 ```
 
-### JupyterLab preview extension
+### JupyterLab preview extension (Optional)
 
 Voilà provides a JupyterLab extension that displays a Voilà preview of your Notebook in a side-pane.
 
@@ -73,6 +80,7 @@ To render the `blocklyeqt` example notebook as a standalone app, run
 voila blocklyeqt.ipynb
 ```
 To serve a directory of Jupyter notebooks, run `voila` with no argument.
+![](./docs/Images/voila_start.gif)
 
 ### Option Two: Render the notebook within Jupyter
 Voilà can also be used as a Jupyter server extension, both with the
@@ -87,6 +95,10 @@ jupyter server extension enable voila
 ```
 
 When running the Jupyter server, the Voilà app is accessible from the base url uffixed with `voila`. Open `blocklyeqt.ipynb` via your local [Jupyter Notebook](https://jupyter.org/) or [Jupyter Lab]((https://jupyter.org/)). Click on `Voilà` icon [<img src="./docs/Images/jupytericon.png" width="30"/>](jupytericon.png)
+![](./docs/Images/jupyter_start.gif)
+
+### Start a Model Training
+Fill in the blocks with your preferred settings. Click on `Launch`, the model training module will automatically run.
 
 
 ## Contributing

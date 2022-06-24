@@ -1,0 +1,52 @@
+================== Overal Info ==============================
+date of report: 2022-06-24 19:43:59.499185
+input_hdf5: ../ModelsAndSampleData/100samples.hdf5
+input_csv: ../ModelsAndSampleData/100samples.csv
+output_name: new_model_outputs
+================== Model Parameters =========================
+input_dimention: (6000, 3)
+cnn_blocks: 2
+lstm_blocks: 1
+padding_type: same
+activation_type: relu
+drop_rate: 0.2
+total params: 378,311
+trainable params: 4,515
+non-trainable params: 373,796
+================== Training Parameters ======================
+mode of training: generator
+loss_types: ['binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy']
+loss_weights: [0.05, 0.4, 0.55]
+batch_size: 20
+epochs: 100
+train_valid_test_split: [0.8, 0.1, 0.1]
+total number of training: 80
+total number of validation: 10
+monitor: val_loss
+patience: 20
+multi_gpu: False
+number_of_gpus: 4
+gpuid: None
+gpu_limit: None
+use_multiprocessing: True
+================== Training Performance =====================
+finished the training in:  0 hours and 4 minutes and 38.3 seconds 
+stoped after epoche: 100
+last loss: 0.0314513398334
+last detector_loss: 0.152926
+last detector_loss: 0.0282991
+last detector_loss: 0.0222862
+last detector_loss: 0.840509
+last detector_loss: 0.395695
+last detector_loss: 0.0
+================== Other Parameters =========================
+label_type: gaussian
+augmentation: False
+shuffle: True
+normalization_mode: std
+add_event_r: 0.6
+add_noise_r: 0.5
+shift_event_r: 0.9
+drop_channel_r: 0.5
+scale_amplitude_r: None
+pre_emphasis: False
