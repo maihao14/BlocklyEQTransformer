@@ -99,10 +99,11 @@ When running the Jupyter server, the Voilà app is accessible from the base url 
 
 ### Start a Model Training
 Fill in the blocks with your preferred settings. Click on `Launch`, the model training module will automatically run.
-![](https://youtu.be/dYRIG-hKchA)
+https://youtu.be/dYRIG-hKchA
+
 
 ### Check performance
-When you finish a training procedure, click on `Training Performance` module. You can easily view the loss function figure and related training results. 
+When you finish a training procedure, click on `Training Performance` module. You can easily view the loss function figure and related training results.
 
 
 
