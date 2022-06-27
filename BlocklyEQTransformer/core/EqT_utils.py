@@ -17,8 +17,7 @@ from keras import backend as K
 from keras.layers import add, Activation, LSTM, Conv1D
 from keras.layers import MaxPooling1D, UpSampling1D, Cropping1D, SpatialDropout1D, Bidirectional, BatchNormalization
 from keras.models import Model
-from tensorflow.python.keras.utils.multi_gpu_utils import multi_gpu_model
-#from keras.utils import multi_gpu_model
+from keras.utils import multi_gpu_model
 from keras.optimizers import Adam
 from obspy.signal.trigger import trigger_onset,recursive_sta_lta
 import matplotlib
