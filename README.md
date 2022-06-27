@@ -99,7 +99,7 @@ When running the Jupyter server, the Voilà app is accessible from the base url 
 
 ### Start a Model Training
 Fill in the blocks with your preferred settings. Click on `Launch`, the model training module will automatically run.
-Check video on ![YouTube](https://youtu.be/dYRIG-hKchA).
+![](./docs/Images/train.gif)
 
 
 ### Check performance
