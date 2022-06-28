@@ -105,7 +105,9 @@ Fill in the blocks with your preferred settings. Click on `Launch`, the model tr
 ### Check performance
 When you finish a training procedure, click on `Training Performance` module. You can easily view the loss function figure and related training results. ![](./docs/Images/performance.gif)
 
-
+### Deployment/ Prediction
+Once you get a trained model, you can run it in deployment module to fast deploy in your field data. 
+![](./docs/Images/predict.gif)
 
 ## Contributing
 

@@ -1,0 +1,26 @@
+================== Overal Info ==============================
+date of report: 2022-06-28 10:24:18.310678
+input_hdf5: ../ModelsAndSampleData/100samples.hdf5
+input_csv: ../ModelsAndSampleData/100samples.csv
+input_model: ../pretrained/EqT_model.h5
+output_dir: /Users/hao/Documents/Python/dev/BlocklyEQTransformer/notebook/prediction_output/100samples_outputs
+================== Prediction Parameters =======================
+finished the prediction in:  0 hours and 0 minutes and 8.47 seconds 
+detected: 99 events.
+writting_probability_outputs: False
+loss_types: ['binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy']
+loss_weights: [0.02, 0.4, 0.58]
+batch_size: 500
+================== Other Parameters =========================
+normalization_mode: std
+estimate uncertainty: False
+number of Monte Carlo sampling: 5
+detection_threshold: 0.3
+P_threshold: 0.3
+S_threshold: 0.3
+number_of_plots: 10
+use_multiprocessing: True
+gpuid: None
+gpu_limit: None
+keepPS: False
+spLimit: 60 seconds
