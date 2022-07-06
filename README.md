@@ -1,7 +1,7 @@
 ![](./docs/Images/logo_large.png)
 
 # Blockly Earthquake Transformer
-Blockly Earthquake Transformer (BET) was born from the need for seismologists and developers who are not AI specialists to easily, quickly, and independently build seismic phase pickers.
+Blockly Earthquake Transformer (BET) was born from the need for seismologists and developers who are not AI specialists to easily, quickly, and independently build seismic phase pickers. BET is an open source platform that automates and simplifies developing and managing deep learning solutions for seismic signal detection and phase picking. It is designed as a web app allowing you to focus on developing your deep learning code & automation, while BET ensures your work is reproducible and scalable.
 
 Blockly Earthquake Transformer (BET) is driven by the-state-of-art AI model - [EQTranformer(EqT)](https://github.com/smousavi05/EQTransformer) from [Mousavi et al. (2020)](https://www.nature.com/articles/s41467-020-17591-w.epdf?sharing_token=IiqAaF4NxwhUWGQLLLyTw9RgN0jAjWel9jnR3ZoTv0Nn-FaUKb3nu4lFkVXeZX_BCz5eMr5DkfCxQ3XASbeWwldzdU9oZF3d2MMG4cz6GWhVklzzzlL0QeMcf9kJJxA8wJAFfFCmtdlpQklDmGG7qRVjJxlCK-nusJjMFWE2oEk%3D).
 ## Introduction
