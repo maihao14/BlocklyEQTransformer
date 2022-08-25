@@ -442,7 +442,7 @@ def _make_dir(output_name):
 def _build_output(model, output_list = ['d','P','S']):
 
     """
-
+    Hao created this function to amplify the output channels of the model.
     Transfer learning for building the output layer.
 
     Parameters
@@ -506,7 +506,7 @@ def _build_model(args):
         Compiled model.
 
     """
-    if args['retrain'] ==0:
+    if args['retrain'] == 0:
 
     # ================================================ #
     #                  Original-Model                #
@@ -530,7 +530,7 @@ def _build_model(args):
         model.summary()
         print('Loading is complete!', flush=True)
         return model
-    if args['retrain'] >0:
+    if args['retrain'] > 0:
     # ================================================ #
     #                  Transfer Learning               #
     # ================================================ #

@@ -115,7 +115,7 @@ class DataGenerator(keras.utils.Sequence):
                  dim,
                  batch_size=32,
                  n_channels=3,
-                 phase_window= 40,
+                 phase_window = 40,
                  shuffle=True,
                  norm_mode = 'max',
                  label_type = 'gaussian',
@@ -126,7 +126,8 @@ class DataGenerator(keras.utils.Sequence):
                  add_noise_r = None,
                  drop_channe_r = None,
                  scale_amplitude_r = None,
-                 pre_emphasis = True):
+                 pre_emphasis = True,
+                 phase_type = ['d','P','S']):
 
         'Initialization'
         self.dim = dim
@@ -147,7 +148,7 @@ class DataGenerator(keras.utils.Sequence):
         self.drop_channe_r = drop_channe_r
         self.scale_amplitude_r = scale_amplitude_r
         self.pre_emphasis = pre_emphasis
-
+        self.phase_type = phase_type
 
     def __len__(self):
         'Denotes the number of batches per epoch'
@@ -164,9 +165,13 @@ class DataGenerator(keras.utils.Sequence):
         else:
             indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
         list_IDs_temp = [self.list_IDs[k] for k in indexes]
-
-        X, y1, y2, y3 = self.__data_generation(list_IDs_temp)
-        return ({'input': X}, {'detector': y1, 'picker_P': y2, 'picker_S': y3})
+        #Old
+        #X, y1, y2, y3 = self.__data_generation(list_IDs_temp)
+        #New(Hao)
+        X, Y = self.__data_generation(list_IDs_temp)
+        # Hao added Aug 2022
+        return (X, Y)
+        #return ({'input': X}, {'detector': y1, 'picker_P': y2, 'picker_S': y3})
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
@@ -270,6 +275,14 @@ class DataGenerator(keras.utils.Sequence):
         y[second_half] = (c-z[second_half]) / (c-b)
         return y
 
+    def _gaussian_label(self, spt, dim, half_window=20):
+        'Used for Gaussian labeling'
+        y = np.zeros((dim, 1))
+        if spt and (spt - half_window >= 0) : #and (spt + half_window < dim)
+            y[spt - half_window:spt + half_window, 0] = np.exp(-(np.arange(spt - half_window, spt + half_window) - spt) ** 2 / (2 * (10) ** 2))[:dim - (spt - half_window)]
+        elif spt and (spt - half_window < dim):
+            y[0:spt + half_window, 0] = np.exp(-(np.arange(0, spt + half_window) - spt) ** 2 / (2 * (10) ** 2))[:dim - (spt - half_window)]
+        return y
     def _add_event(self, data, addp, adds, coda_end, snr, rate):
         'Add a scaled version of the event into the empty part of the trace'
 
@@ -295,7 +308,34 @@ class DataGenerator(keras.utils.Sequence):
 
         return data, additions
 
+    def _new_shift_event(self, data, arrivals, rate=0.45):
+        'Randomly rotate the array to shift the event location'
+        org_len = len(data)
+        data2 = np.copy(data)
+        if np.random.uniform(0, 1) < rate:
+            nrotate = int(np.random.uniform(1, int(org_len)))
+            data2 = np.roll(data, nrotate, axis=0)
+            for idx in range(len(arrivals)):
+                if ~np.isnan(arrivals[idx]):
+                    arrivals[idx] = (arrivals[idx] + nrotate) % org_len
+        return data2, arrivals
 
+    def _shift_event(self, data, addp, adds, coda_end, snr, rate):
+        'Randomly rotate the array to shift the event location'
+
+        org_len = len(data)
+        data2 = np.copy(data)
+        addp2 = adds2 = coda_end2 = None;
+        if np.random.uniform(0, 1) < rate:
+            nrotate = int(np.random.uniform(1, int(org_len - coda_end)))
+            data2[:, 0] = list(data[:, 0])[-nrotate:] + list(data[:, 0])[:-nrotate]
+            data2[:, 1] = list(data[:, 1])[-nrotate:] + list(data[:, 1])[:-nrotate]
+            data2[:, 2] = list(data[:, 2])[-nrotate:] + list(data[:, 2])[:-nrotate]
+
+            if addp+nrotate >= 0 and addp+nrotate < org_len:
+                addp2 = addp+nrotate;
+            else:
+                addp2 = None;
     def _shift_event(self, data, addp, adds, coda_end, snr, rate):
         'Randomly rotate the array to shift the event location'
 
@@ -336,18 +376,27 @@ class DataGenerator(keras.utils.Sequence):
         return data
 
     def __data_generation(self, list_IDs_temp):
-        'read the waveforms'
+        '''read the waveforms and generate the samples
+        return:
+            X: waveforms
+            y: labels
+        '''
         X = np.zeros((self.batch_size, self.dim, self.n_channels))
-        y1 = np.zeros((self.batch_size, self.dim, 1))
-        y2 = np.zeros((self.batch_size, self.dim, 1))
-        y3 = np.zeros((self.batch_size, self.dim, 1))
+        y1 = np.zeros((self.batch_size, self.dim, 1))  # label for the detector of the event
+        y2 = np.zeros((self.batch_size, self.dim, 1))  # label for the P arrival
+        y3 = np.zeros((self.batch_size, self.dim, 1))  # label for the S arrival
+        y4 = np.zeros((self.batch_size, self.dim, 1))  # label for the Pn arrival
+        y5 = np.zeros((self.batch_size, self.dim, 1))  # label for the Sn arrival
+        y6 = np.zeros((self.batch_size, self.dim, 1))  # label for the Pg arrival
+        y7 = np.zeros((self.batch_size, self.dim, 1))  # label for the Sg arrival
         fl = h5py.File(self.file_name, 'r')
+
 
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
             additions = None
             dataset = fl.get('/data/'+str(ID))
-            # Hao Apr 6
+            # Hao Apr 6 2022
             # if ID.split('_')[-1] == 'NO':
             #     data = np.array(dataset)
             # else:
@@ -361,10 +410,20 @@ class DataGenerator(keras.utils.Sequence):
             # self.augmentation = False
             if ID.split('_')[-1] == 'EV':
                 data = np.array(dataset)
-                spt = int(dataset.attrs['p_arrival_sample']);
-                sst = int(dataset.attrs['s_arrival_sample']);
-                coda_end = int(dataset.attrs['coda_end_sample']);
-                snr = dataset.attrs['snr_db'];
+                # Hao: transpose numpy array if original shape is (n_channels, n_samples )
+                if data.shape[0] == 3:
+                    data = np.transpose(data)
+                try:
+                    arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
+                except:
+                    arrivals = np.array([np.nan,np.nan,np.nan,np.nan,np.nan,np.nan])
+
+                try:
+                    arrivals[0] = int(dataset.attrs['p_arrival_sample'])
+                    arrivals[3] = int(dataset.attrs['s_arrival_sample'])
+                except:
+                    pass
+                snr = dataset.attrs['snr_db']
 
             elif ID.split('_')[-1] == 'NO':
                 data = np.array(dataset)
@@ -410,59 +469,39 @@ class DataGenerator(keras.utils.Sequence):
                             data = self._normalize(data, self.norm_mode)
 
             elif self.augmentation == False:
-#                if self.shift_event_r and dataset.attrs['trace_category'] == 'earthquake_local':
-#                    data, spt, sst, coda_end = self._shift_event(data, spt, sst, coda_end, snr, self.shift_event_r/2);
+                if self.shift_event_r and ID.split('_')[-1] == 'EV':
+                    #data = self._shift_event(data, self.shift_event_r/2);
+                    # Hao Simplify random_shift function Aug 23 2022
+                    data, arrivals = self._new_shift_event(data, arrivals, self.shift_event_r/2);
                 if self.norm_mode:
                     data = self._normalize(data, self.norm_mode)
 
             X[i, :, :] = data
 
             ## labeling
-            if dataset.attrs['trace_category'] == 'earthquake_local':
-                if self.label_type  == 'gaussian':
-                    sd = None
-                    if spt and sst:
-                        sd = 40 # define fixed signal length
-
-                    if sd and sst:
-                        if sst+int(0.4*sd) <= self.dim:
-                            y1[i, spt:int(sst+(0.4*sd)), 0] = 1
-                        else:
-                            y1[i, spt:self.dim, 0] = 1
-
-                    if spt and (spt-20 >= 0) and (spt+20 < self.dim):
-                        y2[i, spt-20:spt+20, 0] = np.exp(-(np.arange(spt-20,spt+20)-spt)**2/(2*(10)**2))[:self.dim-(spt-20)]
-                    elif spt and (spt-20 < self.dim):
-                        y2[i, 0:spt+20, 0] = np.exp(-(np.arange(0,spt+20)-spt)**2/(2*(10)**2))[:self.dim-(spt-20)]
-
-                    if sst and (sst-20 >= 0) and (sst-20 < self.dim):
-                        y3[i, sst-20:sst+20, 0] = np.exp(-(np.arange(sst-20,sst+20)-sst)**2/(2*(10)**2))[:self.dim-(sst-20)]
-                    elif sst and (sst-20 < self.dim):
-                        y3[i, 0:sst+20, 0] = np.exp(-(np.arange(0,sst+20)-sst)**2/(2*(10)**2))[:self.dim-(sst-20)]
-
-                    if additions:
-                        add_sd = None
-                        add_spt = additions[0];
-                        add_sst = additions[1];
-                        if add_spt and add_sst:
-                            add_sd = add_sst - add_spt
-
-                        if add_sd and add_sst+int(0.4*add_sd) <= self.dim:
-                            y1[i, add_spt:int(add_sst+(0.4*add_sd)), 0] = 1
-                        else:
-                            y1[i, add_spt:self.dim, 0] = 1
-
-                        if add_spt and (add_spt-20 >= 0) and (add_spt+20 < self.dim):
-                            y2[i, add_spt-20:add_spt+20, 0] = np.exp(-(np.arange(add_spt-20,add_spt+20)-add_spt)**2/(2*(10)**2))[:self.dim-(add_spt-20)]
-                        elif add_spt and (add_spt+20 < self.dim):
-                            y2[i, 0:add_spt+20, 0] = np.exp(-(np.arange(0,add_spt+20)-add_spt)**2/(2*(10)**2))[:self.dim-(add_spt-20)]
-
-                        if add_sst and (add_sst-20 >= 0) and (add_sst+20 < self.dim):
-                            y3[i, add_sst-20:add_sst+20, 0] = np.exp(-(np.arange(add_sst-20,add_sst+20)-add_sst)**2/(2*(10)**2))[:self.dim-(add_sst-20)]
-                        elif add_sst and (add_sst+20 < self.dim):
-                            y3[i, 0:add_sst+20, 0] = np.exp(-(np.arange(0,add_sst+20)-add_sst)**2/(2*(10)**2))[:self.dim-(add_sst-20)]
-
-
+            if 'earthquake' in dataset.attrs['trace_category']:
+                if self.label_type == 'gaussian':
+                    for phase in self.phase_type:
+                        if phase == 'P':
+                            if ~np.isnan(arrivals[0]):
+                                y2[i] = self._gaussian_label(int(arrivals[0]), self.dim, self.phase_window //2)
+                        elif phase == 'S':
+                            if ~np.isnan(arrivals[3]):
+                                y3[i] = self._gaussian_label(int(arrivals[3]), self.dim, self.phase_window // 2)
+                        elif phase == 'Pn':
+                            if ~np.isnan(arrivals[1]):
+                                y4[i] = self._gaussian_label(int(arrivals[1]), self.dim, self.phase_window //2)
+                        elif phase == 'Sn':
+                            if ~np.isnan(arrivals[4]):
+                                y5[i] = self._gaussian_label(int(arrivals[4]), self.dim, self.phase_window //2)
+                        elif phase == 'Pg':
+                            if ~np.isnan(arrivals[2]):
+                                y6[i] = self._gaussian_label(int(arrivals[2]), self.dim, self.phase_window //2)
+                        elif phase == 'Sg':
+                            if ~np.isnan(arrivals[5]):
+                                y7[i] = self._gaussian_label(int(arrivals[5]), self.dim, self.phase_window //2)
+                    if 'd' in self.phase_type:
+                        y1[i] = y2[i] + y3[i] + y4[i] + y5[i] + y6[i] + y7[i]
                 elif self.label_type  == 'triangle':
                     sd = None
                     if spt and sst:
@@ -550,8 +589,39 @@ class DataGenerator(keras.utils.Sequence):
                             y3[i, add_sst-20:add_sst+20, 0] = 1
 
         fl.close()
-
-        return X, y1.astype('float32'), y2.astype('float32'), y3.astype('float32')
+        input_dict = {'input': X}
+        output_dict = {}
+        # {'detector': y1, 'picker_P': y2, 'picker_S': y3}
+        if 'd' in self.phase_type or 'D' in self.phase_type:
+            # add detector channel
+            output_name = 'detector'
+            output_dict[output_name] = y1.astype('float32')
+        for picker_name in self.phase_type:
+            if picker_name == 'P':
+                # add P-type output channel
+                output_name = 'picker_' + picker_name
+                output_dict[output_name] = y2.astype('float32')
+            if picker_name == 'S':
+                # add S-type output channel
+                output_name = 'picker_' + picker_name
+                output_dict[output_name] = y3.astype('float32')
+            if picker_name == 'Pn':
+                # add Pn-type output channel
+                output_name = 'picker_' + picker_name
+                output_dict[output_name] = y4.astype('float32')
+            if picker_name == 'Sn':
+                # add Sn-type output channel
+                output_name = 'picker_' + picker_name
+                output_dict[output_name] = y5.astype('float32')
+            if picker_name == 'Pg':
+                # add Pg-type output channel
+                output_name = 'picker_' + picker_name
+                output_dict[output_name] = y6.astype('float32')
+            if picker_name == 'Sg':
+                # add Sg-type output channel
+                output_name = 'picker_' + picker_name
+                output_dict[output_name] = y7.astype('float32')
+        return input_dict, output_dict
 
 
 
