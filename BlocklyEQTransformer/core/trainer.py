@@ -349,7 +349,8 @@ def trainer(input_model=None,
                               'add_noise_r': args['add_noise_r'],
                               'drop_channe_r': args['drop_channel_r'],
                               'scale_amplitude_r': args['scale_amplitude_r'],
-                              'pre_emphasis': args['pre_emphasis']}
+                              'pre_emphasis': args['pre_emphasis'],
+                              'phase_type': args['phase_types']}
 
             params_validation = {'file_name': str(args['input_hdf5']),
                                  'dim': args['input_dimention'][0],
@@ -357,7 +358,8 @@ def trainer(input_model=None,
                                  'n_channels': args['input_dimention'][-1],
                                  'shuffle': False,
                                  'norm_mode': args['normalization_mode'],
-                                 'augmentation': False}
+                                 'augmentation': False,
+                                 'phase_type': args['phase_types']}
 
             training_generator = DataGenerator(training, **params_training)
             validation_generator = DataGenerator(validation, **params_validation)
@@ -549,10 +551,10 @@ def _build_model(args):
         #revise output channels
         tl_model = _build_output(new_model, args['phase_types'])
         #compile
-        tl_model.compile(loss = args['loss_types'],
-                      loss_weights =  args['loss_weights'],
-                      optimizer = Adam(lr = 0.001),
-                      metrics = [f1])
+        tl_model.compile(loss=args['loss_types'],
+                         loss_weights=args['loss_weights'],
+                         optimizer=Adam(lr=0.001),
+                         metrics=[f1])
         tl_model.summary()
         print('Loading is complete!', flush=True)
         return tl_model

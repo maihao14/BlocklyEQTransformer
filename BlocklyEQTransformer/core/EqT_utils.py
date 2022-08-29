@@ -412,7 +412,10 @@ class DataGenerator(keras.utils.Sequence):
                 data = np.array(dataset)
                 # Hao: transpose numpy array if original shape is (n_channels, n_samples )
                 if data.shape[0] == 3:
+                    # USGS data
                     data = np.transpose(data)
+                    # USGS data also need to change from (4800,3 )to (6000,3) each trace
+                    data = np.concatenate((data, data[0:1200, :]))
                 try:
                     arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
                 except:
