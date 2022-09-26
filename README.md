@@ -1,6 +1,8 @@
 ![](./docs/Images/logo_large.png)
 
 # Blockly Earthquake Transformer
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7112235.svg)](https://doi.org/10.5281/zenodo.7112235)
+
 Blockly Earthquake Transformer (BET) was born from the need for seismologists and developers who are not AI specialists to easily, quickly, and independently build seismic phase pickers. BET is an open source platform that automates and simplifies developing and managing deep learning solutions for seismic signal detection and phase picking. It is designed as a web app allowing you to focus on developing your deep learning code & automation, while BET ensures your work is reproducible and scalable.
 
 Blockly Earthquake Transformer (BET) is driven by the-state-of-art AI model - [EQTranformer(EqT)](https://github.com/smousavi05/EQTransformer) from [Mousavi et al. (2020)](https://www.nature.com/articles/s41467-020-17591-w.epdf?sharing_token=IiqAaF4NxwhUWGQLLLyTw9RgN0jAjWel9jnR3ZoTv0Nn-FaUKb3nu4lFkVXeZX_BCz5eMr5DkfCxQ3XASbeWwldzdU9oZF3d2MMG4cz6GWhVklzzzlL0QeMcf9kJJxA8wJAFfFCmtdlpQklDmGG7qRVjJxlCK-nusJjMFWE2oEk%3D).
@@ -112,3 +114,6 @@ Once you get a trained model, you can run it in deployment module to fast deploy
 ## Contributing
 
 All constructive contributions are welcome, e.g. bug reports, discussions or suggestions for new features. You can either [open an issue on GitHub](https://github.com/maihao14/BlocklyEQTransformer/issues) or make a pull request with your proposed changes. Before making a pull request, check if there is a corresponding issue opened and reference it in the pull request. If there isn't one, it is recommended to open one with your rationale for the change. New functionality or significant changes to the code that alter its behaviour should come with corresponding tests and documentation. If you are new to contributing, you can open a work-in-progress pull request and have it iteratively reviewed. Suggestions for improvements (speed, accuracy, etc.) are also welcome.
+
+## Citation
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7112235.svg)](https://doi.org/10.5281/zenodo.7112235)

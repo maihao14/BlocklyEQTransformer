@@ -415,6 +415,7 @@ class DataGenerator(keras.utils.Sequence):
                     # USGS data
                     data = np.transpose(data)
                     # USGS data also need to change from (4800,3 )to (6000,3) each trace
+                    # add if condition to avoid input shape error
                     data = np.concatenate((data, data[0:1200, :]))
                 try:
                     arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
