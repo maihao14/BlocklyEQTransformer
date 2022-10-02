@@ -83,6 +83,7 @@ def predictor(input_dir=None,
               number_of_sampling=5,
               loss_weights=[0.03, 0.40, 0.58],
               loss_types=['binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy'],
+              phase_types = ['d','P', 'S'],
               input_dimention=(6000, 3),
               normalization_mode='std',
               batch_size=500,
@@ -90,7 +91,7 @@ def predictor(input_dir=None,
               gpu_limit=None,
               number_of_cpus=5,
               use_multiprocessing=True,
-              keepPS=True,
+              keepPS=False,
               spLimit=60):
 
 
@@ -202,6 +203,7 @@ def predictor(input_dir=None,
     "number_of_sampling": number_of_sampling,
     "loss_weights": loss_weights,
     "loss_types": loss_types,
+    "phase_types": phase_types,  # create a list of phases to be predicted
     "input_dimention": input_dimention,
     "normalization_mode": normalization_mode,
     "batch_size": batch_size,
@@ -297,6 +299,7 @@ def predictor(input_dir=None,
              pass
 
         if args['output_probabilities']:
+            # create a hdf5 file to save the probabilities and uncertainties
             HDF_PROB = h5py.File(out_probs, 'a')
             HDF_PROB.create_group("probabilities")
             HDF_PROB.create_group("uncertainties")
@@ -343,13 +346,14 @@ def predictor(input_dir=None,
                 pbar_test.update()
 
             new_list = next(list_generator)
-            prob_dic=_gen_predictor(new_list, args, model)
+            # generate probabilities and uncertainties
+            prob_dic=_gen_predictor(new_list, args, model,phase_types)
 
             pred_set={}
             for ID in new_list:
                 dataset = fl.get('data/'+str(ID))
                 pred_set.update( {str(ID) : dataset})
-
+            # generate the plots hdf5 and csv files
             plt_n, detection_memory= _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, save_figs, csvPr_gen, plt_n, detection_memory, keepPS, spLimit)
 
         end_Predicting = time.time()
@@ -397,7 +401,7 @@ def predictor(input_dir=None,
 
 
 
-def _gen_predictor(new_list, args, model):
+def _gen_predictor(new_list, args, model,phase_type):
 
 
     """
@@ -455,24 +459,95 @@ def _gen_predictor(new_list, args, model):
         pred_SS = np.array(pred_SS).reshape(args['number_of_sampling'], len(new_list), params_prediction['dim'])
         pred_SS_mean = pred_SS.mean(axis=0)
         pred_SS_std = pred_SS.std(axis=0)
+        # add Sept 2022 Hao
+        prob_dic['DD_mean'] = pred_DD_mean
+        prob_dic['PP_mean'] = pred_PP_mean
+        prob_dic['SS_mean'] = pred_SS_mean
+        prob_dic['DD_std'] = pred_DD_std
+        prob_dic['PP_std'] = pred_PP_std
+        prob_dic['SS_std'] = pred_SS_std
     else:
-        pred_DD_mean, pred_PP_mean, pred_SS_mean = model.predict_generator(generator = prediction_generator,
+        # Only output probabilities
+        # pred_DD_mean, pred_PP_mean, pred_SS_mean = model.predict_generator(generator = prediction_generator,
+        #                                                                    use_multiprocessing = args['use_multiprocessing'],
+        #                                                                    workers = args['number_of_cpus'])
+        # rewrite adaptive prediction array
+        pred_DD = model.predict_generator(generator = prediction_generator,
                                                                            use_multiprocessing = args['use_multiprocessing'],
                                                                            workers = args['number_of_cpus'])
-        pred_DD_mean = pred_DD_mean.reshape(pred_DD_mean.shape[0], pred_DD_mean.shape[1])
-        pred_PP_mean = pred_PP_mean.reshape(pred_PP_mean.shape[0], pred_PP_mean.shape[1])
-        pred_SS_mean = pred_SS_mean.reshape(pred_SS_mean.shape[0], pred_SS_mean.shape[1])
+        index = 0
+        if 'd' in phase_type or 'D' in phase_type:
+            # add detector prediction
+            pred_DD_mean = pred_DD[index]
+            index = index + 1
+            pred_DD_mean = pred_DD_mean.reshape(pred_DD_mean.shape[0], pred_DD_mean.shape[1])
+            pred_DD_std = np.zeros((pred_DD_mean.shape))
+            prob_dic['DD_mean'] = pred_DD_mean
+            prob_dic['DD_std'] = pred_DD_std
+        for picker_name in phase_type:
+            if picker_name == 'P':
+                # add P-type output prediction
+                pred_PP_mean = pred_DD[index]
+                pred_PP_mean = pred_PP_mean.reshape(pred_PP_mean.shape[0], pred_PP_mean.shape[1])
+                pred_PP_std = np.zeros((pred_PP_mean.shape))
+                prob_dic['PP_mean'] = pred_PP_mean
+                prob_dic['PP_std'] = pred_PP_std
+                index = index + 1
+            if picker_name == 'S':
+                # add S-type output prediction
+                pred_SS_mean = pred_DD[index]
+                pred_SS_mean = pred_SS_mean.reshape(pred_SS_mean.shape[0], pred_SS_mean.shape[1])
+                pred_SS_std = np.zeros((pred_SS_mean.shape))
+                prob_dic['SS_mean'] = pred_SS_mean
+                prob_dic['SS_std'] = pred_SS_std
+                index = index + 1
+            if picker_name == 'Pn':
+                # add Pn-type output prediction
+                pred_PN_mean = pred_DD[index]
+                pred_PN_mean = pred_PN_mean.reshape(pred_PN_mean.shape[0], pred_PN_mean.shape[1])
+                pred_PN_std = np.zeros((pred_PN_mean.shape))
+                prob_dic['PN_mean'] = pred_PN_mean
+                prob_dic['PP_std'] = pred_PN_std
+                index = index + 1
+            if picker_name == 'Sn':
+                # add Sn-type output channel
+                pred_SN_mean = pred_DD[index]
+                pred_SN_mean = pred_SN_mean.reshape(pred_SN_mean.shape[0], pred_SN_mean.shape[1])
+                pred_SN_std = np.zeros((pred_SN_mean.shape))
+                prob_dic['SN_mean'] = pred_SN_mean
+                prob_dic['SS_std'] = pred_SN_std
+                index = index + 1
+            if picker_name == 'Pg':
+                # add Pg-type output channel
+                pred_PG_mean = pred_DD[index]
+                pred_PG_mean = pred_PG_mean.reshape(pred_PG_mean.shape[0], pred_PG_mean.shape[1])
+                pred_PG_std = np.zeros((pred_PG_mean.shape))
+                prob_dic['PG_mean'] = pred_PG_mean
+                prob_dic['PG_std'] = pred_PG_std
+                index = index + 1
+            if picker_name == 'Sg':
+                # add Sg-type output channel
+                pred_SG_mean = pred_DD[index]
+                pred_SG_mean = pred_SG_mean.reshape(pred_SG_mean.shape[0], pred_SG_mean.shape[1])
+                pred_SG_std = np.zeros((pred_SG_mean.shape))
+                prob_dic['SG_mean'] = pred_SG_mean
+                prob_dic['SG_std'] = pred_SG_std
+                index = index + 1
+        # old version
+        # pred_DD_mean = pred_DD_mean.reshape(pred_DD_mean.shape[0], pred_DD_mean.shape[1])
+        # pred_PP_mean = pred_PP_mean.reshape(pred_PP_mean.shape[0], pred_PP_mean.shape[1])
+        # pred_SS_mean = pred_SS_mean.reshape(pred_SS_mean.shape[0], pred_SS_mean.shape[1])
 
-        pred_DD_std = np.zeros((pred_DD_mean.shape))
-        pred_PP_std = np.zeros((pred_PP_mean.shape))
-        pred_SS_std = np.zeros((pred_SS_mean.shape))
-
-    prob_dic['DD_mean']=pred_DD_mean
-    prob_dic['PP_mean']=pred_PP_mean
-    prob_dic['SS_mean']=pred_SS_mean
-    prob_dic['DD_std']=pred_DD_std
-    prob_dic['PP_std']=pred_PP_std
-    prob_dic['SS_std']=pred_SS_std
+        # pred_DD_std = np.zeros((pred_DD_mean.shape))
+        # pred_PP_std = np.zeros((pred_PP_mean.shape))
+        # pred_SS_std = np.zeros((pred_SS_mean.shape))
+    # old version Hao blocked on 2021-09-02
+    # prob_dic['DD_mean']=pred_DD_mean
+    # prob_dic['PP_mean']=pred_PP_mean
+    # prob_dic['SS_mean']=pred_SS_mean
+    # prob_dic['DD_std']=pred_DD_std
+    # prob_dic['PP_std']=pred_PP_std
+    # prob_dic['SS_std']=pred_SS_std
 
     return prob_dic
 
@@ -553,8 +628,10 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
             HDF_PROB.create_dataset('uncertainties/'+str(evi), uncs.shape, data=uncs, dtype= np.float32)
             HDF_PROB.flush()
 
-        matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PP_mean'][ts], prob_dic['SS_mean'][ts],
+        if 'DD_mean' in prob_dic.keys() and 'PP_mean' in prob_dic.keys() and 'SS_mean' in prob_dic.keys():
+            matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PP_mean'][ts], prob_dic['SS_mean'][ts],
                                             prob_dic['DD_std'][ts], prob_dic['PP_std'][ts], prob_dic['SS_std'][ts])
+
         if keepPS:
             if (len(matches) >= 1) and (matches[list(matches)[0]][3] and matches[list(matches)[0]][6]):
                 if (matches[list(matches)[0]][6] - matches[list(matches)[0]][3]) < spLimit*100:
@@ -588,8 +665,44 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
                                           prob_dic['SS_std'][ts],
                                           matches)
                     plt_n += 1 ;
-
-
+        # Pn and Sn Hao Sept.2022
+        if 'DD_mean' in prob_dic.keys() and 'PN_mean' in prob_dic.keys() and 'SN_mean' in prob_dic.keys():
+            matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PN_mean'][ts], prob_dic['SN_mean'][ts],
+                                            prob_dic['DD_std'][ts], prob_dic['PN_std'][ts], prob_dic['SN_std'][ts])
+            if (len(matches) >= 1) and ((matches[list(matches)[0]][3] or matches[list(matches)[0]][6])):
+                snr = [_get_snr(dat, matches[list(matches)[0]][3], window = 100), _get_snr(dat, matches[list(matches)[0]][6], window = 100)]
+                pre_write = len(detection_memory)
+                detection_memory=_output_writter_prediction(dataset, predict_writer, csvPr_gen, matches, snr, detection_memory)
+                post_write = len(detection_memory)
+                if plt_n < args['number_of_plots'] and post_write > pre_write:
+                    _plotter_prediction(dat, evi, args, save_figs,
+                                          prob_dic['DD_mean'][ts],
+                                          prob_dic['PN_mean'][ts],
+                                          prob_dic['SN_mean'][ts],
+                                          prob_dic['DD_std'][ts],
+                                          prob_dic['PN_std'][ts],
+                                          prob_dic['SN_std'][ts],
+                                          matches)
+                    plt_n += 1 ;
+        # Pg and Sg Hao Sept.2022
+        if 'DD_mean' in prob_dic.keys() and 'PG_mean' in prob_dic.keys() and 'SG_mean' in prob_dic.keys():
+            matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PG_mean'][ts], prob_dic['SG_mean'][ts],
+                                            prob_dic['DD_std'][ts], prob_dic['PG_std'][ts], prob_dic['SG_std'][ts])
+            if (len(matches) >= 1) and ((matches[list(matches)[0]][3] or matches[list(matches)[0]][6])):
+                snr = [_get_snr(dat, matches[list(matches)[0]][3], window = 100), _get_snr(dat, matches[list(matches)[0]][6], window = 100)]
+                pre_write = len(detection_memory)
+                detection_memory=_output_writter_prediction(dataset, predict_writer, csvPr_gen, matches, snr, detection_memory)
+                post_write = len(detection_memory)
+                if plt_n < args['number_of_plots'] and post_write > pre_write:
+                    _plotter_prediction(dat, evi, args, save_figs,
+                                          prob_dic['DD_mean'][ts],
+                                          prob_dic['PG_mean'][ts],
+                                          prob_dic['SG_mean'][ts],
+                                          prob_dic['DD_std'][ts],
+                                          prob_dic['PG_std'][ts],
+                                          prob_dic['SG_std'][ts],
+                                          matches)
+                    plt_n += 1 ;
     return plt_n, detection_memory
 
 

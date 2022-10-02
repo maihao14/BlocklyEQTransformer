@@ -927,14 +927,14 @@ def _document_training(history, model, start_training, end_training, save_dir, s
                 the_file.write('last detector_loss: '+str(history.history['detector_loss'][-1])+'\n')
             else:
                 output_name = 'picker_'+picker_name + '_loss'
-                the_file.write('last detector_loss: '+str(history.history[output_name][-1])+'\n')
+                the_file.write('last '+picker_name+'_loss: '+str(history.history[output_name][-1])+'\n')
         for picker_name in args["phase_types"]:
             if 'd' in picker_name or 'D' in picker_name:
                 # detector loss
-                the_file.write('last detector_loss: '+str(history.history['detector_f1'][-1])+'\n')
+                the_file.write('last detector_f1: '+str(history.history['detector_f1'][-1])+'\n')
             else:
                 output_name = 'picker_'+picker_name + '_f1'
-                the_file.write('last detector_loss: '+str(history.history[output_name][-1])+'\n')
+                the_file.write('last '+picker_name+'_f1: '+str(history.history[output_name][-1])+'\n')
 # =============================================================================
 #         the_file.write('last detector_loss: '+str(history.history['detector_loss'][-1])+'\n')
 #         the_file.write('last picker_P_loss: '+str(history.history['picker_P_loss'][-1])+'\n')

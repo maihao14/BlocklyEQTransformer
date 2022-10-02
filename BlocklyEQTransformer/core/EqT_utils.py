@@ -2003,30 +2003,6 @@ def picker(args, yh1, yh2, yh3, yh1_std, yh2_std, yh3_std, spt=None, sst=None):
 
             EVENTS.update({ detection[ev][0] : [D_prob, D_uncertainty, detection[ev][1]]})
 
-    # matching the detection and picks
-    def pair_PS(l1, l2, dist):
-        l1.sort()
-        l2.sort()
-        b = 0
-        e = 0
-        ans = []
-
-        for a in l1:
-            while l2[b] and b < len(l2) and a - l2[b] > dist:
-                b += 1
-            while l2[e] and e < len(l2) and l2[e] - a <= dist:
-                e += 1
-            ans.extend([[a,x] for x in l2[b:e]])
-
-        best_pair = None
-        for pr in ans:
-            ds = pr[1]-pr[0]
-            if abs(ds) < dist:
-                best_pair = pr
-                dist = ds
-        return best_pair
-
-
     for ev in EVENTS:
         bg = ev
         ed = EVENTS[ev][2]
@@ -2093,7 +2069,7 @@ def picker(args, yh1, yh2, yh3, yh1_std, yh2_std, yh3_std, spt=None, sst=None):
 #                     candidate_Ps = {PS[0] : candidate_Ps.get(PS[0])}
 #                     candidate_Ss = {PS[1] : candidate_Ss.get(PS[1])}
 # =============================================================================
-
+            # matching the detection and picks
             if list(candidate_Ss)[0] or list(candidate_Ps)[0]:
                 matches.update({
                                 bg:[ed,
@@ -2108,7 +2084,7 @@ def picker(args, yh1, yh2, yh3, yh1_std, yh2_std, yh3_std, spt=None, sst=None):
                                     candidate_Ss[list(candidate_Ss)[0]][0],
                                     candidate_Ss[list(candidate_Ss)[0]][1],
                                                 ] })
-
+                # error calculation
                 if sst and sst > bg and sst < EVENTS[ev][2]:
                     if list(candidate_Ss)[0]:
                         S_error = sst -list(candidate_Ss)[0]
