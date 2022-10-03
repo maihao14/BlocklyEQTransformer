@@ -97,7 +97,9 @@ def trainer(input_model=None,
             gpuid=None,
             gpu_limit=None,
             use_multiprocessing=True,
-            phase_types=['d','P','S']):
+            phase_types=['d','P','S'],
+            nb_filters=[8, 16, 16, 32, 32, 64, 64],
+            kernel_size=[11, 9, 7, 7, 5, 5, 3]):
 
     """
 
@@ -275,7 +277,9 @@ def trainer(input_model=None,
     "gpuid": gpuid,
     "gpu_limit": gpu_limit,
     "use_multiprocessing": use_multiprocessing,
-    "phase_types":phase_types
+    "phase_types":phase_types,
+    "nb_filters":nb_filters,
+    "kernel_size":kernel_size
     }
 
     def train(args):
@@ -508,8 +512,28 @@ def _build_model(args):
         Compiled model.
 
     """
+    # build new model (not transfer learning or fine tuning)
+    if args['retrain'] == -1:
+        inp = Input(shape=args['input_dimention'], name='input')
+        model = cred2(nb_filters=args['nb_filters'], #[8, 16, 16, 32, 32, 64, 64],
+                  kernel_size=args['kernel_size'], #[11, 9, 7, 7, 5, 5, 3],
+                  padding=args['padding'],
+                  activationf =args['activation'],
+                  cnn_blocks=args['cnn_blocks'],
+                  BiLSTM_blocks=args['lstm_blocks'],
+                  drop_rate=args['drop_rate'],
+                  loss_weights=args['loss_weights'],
+                  loss_types=args['loss_types'],
+                  kernel_regularizer=keras.regularizers.l2(1e-6),
+                  bias_regularizer=keras.regularizers.l1(1e-4),
+                  multi_gpu=args['multi_gpu'],
+                  gpu_number=args['number_of_gpus'],
+                    )(inp)
+        model = _build_output(model, args['phase_types'])
+        model.summary()
+        print('Loading is complete!', flush=True)
+        return model
     if args['retrain'] == 0:
-
     # ================================================ #
     #                  Original-Model                #
     # ================================================ #
@@ -544,7 +568,7 @@ def _build_model(args):
                                                              })
         #Hao
         #frozon layers except the output channels
-        if args['retrain'] ==1 :
+        if args['retrain'] == 1:
             for layer in new_model.layers[:-6]:
                 layer.trainable = False
 
