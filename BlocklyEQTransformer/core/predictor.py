@@ -666,6 +666,7 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
                                           matches)
                     plt_n += 1 ;
         # Pn and Sn Hao Sept.2022
+        # bug: cannot display other phases's name on plots, e.g., Pg, Sg and Pn, Sn
         if 'DD_mean' in prob_dic.keys() and 'PN_mean' in prob_dic.keys() and 'SN_mean' in prob_dic.keys():
             matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PN_mean'][ts], prob_dic['SN_mean'][ts],
                                             prob_dic['DD_std'][ts], prob_dic['PN_std'][ts], prob_dic['SN_std'][ts])
@@ -685,6 +686,7 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
                                           matches)
                     plt_n += 1 ;
         # Pg and Sg Hao Sept.2022
+        # bug: cannot display other phases's name on plots, e.g., Pg, Sg and Pn, Sn
         if 'DD_mean' in prob_dic.keys() and 'PG_mean' in prob_dic.keys() and 'SG_mean' in prob_dic.keys():
             matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PG_mean'][ts], prob_dic['SG_mean'][ts],
                                             prob_dic['DD_std'][ts], prob_dic['PG_std'][ts], prob_dic['SG_std'][ts])
