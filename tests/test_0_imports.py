@@ -24,11 +24,11 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-name='core'
 
-from .EqT_utils import *
-from .trainer import trainer
-from .tester import tester
-from .predictor import predictor
-from .mseed_predictor import mseed_predictor
-
+def test_import_bocklyeqtransformer():
+    """Test imports."""
+    import BlocklyEQTransformer
+    from BlocklyEQTransformer.core.trainer import trainer
+    from BlocklyEQTransformer.core.predictor import predictor
+    from BlocklyEQTransformer.core.tester import tester
+    print("Imports are working!")

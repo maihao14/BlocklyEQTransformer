@@ -3,6 +3,10 @@
 #
 # Copyright (c) 2022 Hao Mai & Pascal Audet
 #
+# Note that Blockly Earthquake Transformer (BET) is driven by Earthquake Transformer
+# V1.59 created by @author: mostafamousavi
+# Ref Repo: https://github.com/smousavi05/EQTransformer
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -20,11 +24,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
-"""
-Note that Blockly Earthquake Transformer (BET) is driven by Earthquake
-Transformer V1.59 created by @author: mostafamousavi
-Ref Repo: https://github.com/smousavi05/EQTransformer
-"""
 
 from __future__ import print_function
 import keras
