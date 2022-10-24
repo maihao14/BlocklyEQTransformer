@@ -10,7 +10,7 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in 
+# The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,33 +44,19 @@ setup(
     packages=find_packages(),
     keywords='Seismology, Earthquakes Detection, Phase Picking, Deep Learning',
     install_requires=[
-#  	'pytest',
-#  	'numpy',     # appox version: numpy 1.19.x but at least 1.19.2
-#  	'keyring>=15.1',
-#  	'pkginfo>=1.4.2',
-#  	#'scipy>=1.4.1',
-#     'scipy',
-#  	#'tensorflow~=2.5.0', # tensorflow <2.7.0 needs numpy <1.20.0
-#     'keras',
-#     'tensorflow',
-#     # 'tensorboard==2.0.2',
-#     # 'tensorflow==2.0.0',
-#     # 'tensorflow-estimator==2.0.1',
-#  	'matplotlib',
-#  	'pandas',
-#  	'tqdm',
-#     'h5py',
-#     'obspy',
-#     'jupyter',
-# # 	'tqdm>=4.48.0',
-# # 	'h5py~=3.1.0',
-# # 	'obspy',
-# # 	'jupyter',
-#     'voila',
-#     'voila-gridstack',
-#     'widgetsnbextension',
-#     'ipywidgets'
+                'matplotlib',
+                'h5py==2.10.0',
+                'tqdm',
+                'obspy',
+                'pandas',
+                'keras==2.3.1',
+                'tensorflow==2.0.0',
+                'pytest',
+                'jupyter==1.0.0',
+                'voila==0.3.5',
+                'ipywidgets~=7.6.5',
+
     ],
 
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 )
