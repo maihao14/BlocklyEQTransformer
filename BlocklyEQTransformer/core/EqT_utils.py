@@ -410,26 +410,44 @@ class DataGenerator(keras.utils.Sequence):
             if ID.split('_')[-1] == 'EV':
                 data = np.array(dataset)
                 # Hao: transpose numpy array if original shape is (n_channels, n_samples )
-                if data.shape[0] == 3:
+                if data.shape[0] <= 10: # assume the original shape is (n_channels, n_samples )
                     # USGS data
                     data = np.transpose(data)
                     # USGS data also need to change from (4800,3 )to (6000,3) each trace
                     # add if condition to avoid input shape error
-                    data = np.concatenate((data, data[0:1200, :]))
+                    # data = np.concatenate((data, data[0:1200, :]))
                 try:
+                    # new STEAD format
                     arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
                 except:
                     arrivals = np.array([np.nan,np.nan,np.nan,np.nan,np.nan,np.nan])
 
                 try:
+                    # old STEAD format
                     arrivals[0] = int(dataset.attrs['p_arrival_sample'])
                     arrivals[3] = int(dataset.attrs['s_arrival_sample'])
                 except:
                     pass
                 snr = dataset.attrs['snr_db']
-
+                # check data shape
+                if data.shape[0] < self.n_samples:
+                    duplicate_len = int(self.n_samples - data.shape[0])
+                    data = np.concatenate((data, data[0:duplicate_len, :]))
+                else:
+                    if data.shape[0] > self.n_samples:
+                        data = data[0:self.n_samples, :]
+                        for i in range(len(arrivals)):
+                            if arrivals[i] > self.n_samples:
+                                arrivals[i] = np.nan
             elif ID.split('_')[-1] == 'NO':
                 data = np.array(dataset)
+                # check data shape
+                if data.shape[0] < self.n_samples:
+                    duplicate_len = int(self.n_samples - data.shape[0])
+                    data = np.concatenate((data, data[0:duplicate_len, :]))
+                else:
+                    if data.shape[0] > self.n_samples:
+                        data = data[0:self.n_samples, :]
             ## augmentation
             if self.augmentation == True:
                 if i <= self.batch_size//2:
@@ -1686,7 +1704,15 @@ class DataGeneratorTest(keras.utils.Sequence):
             elif ID.split('_')[-1] == 'NO':
                 dataset = fl.get('data/'+str(ID))
                 data = np.array(dataset)
-
+            if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                data = np.transpose(data)
+            # check data shape
+            if data.shape[0] < self.n_channels:
+                duplicate_len = int(self.n_channels - data.shape[0])
+                data = np.concatenate((data, data[0:duplicate_len, :]))
+            else:
+                if data.shape[0] > self.n_channels:
+                    data = data[0:self.n_channels, :]
             if self.norm_mode:
                 data = self.normalize(data, self.norm_mode)
 
@@ -1790,11 +1816,35 @@ class DataGeneratorPrediction(keras.utils.Sequence):
         for i, ID in enumerate(list_IDs_temp):
             dataset = fl.get('data/'+str(ID))
             data = np.array(dataset)
-
+            if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                data = np.transpose(data)
+            # check data shape e.g, sample length < required n_samples, start duplicating
+            if data.shape[0] < self.dim:
+                duplicate_len = int(self.dim - data.shape[0])
+                data = np.concatenate((data, data[0:duplicate_len, :]))
+            else:
+                # check data shape e.g, sample length > required n_samples, start trimming
+                if data.shape[0] > self.dim:
+                    data = data[0:self.dim, :]
             if self.norm_mode:
                 data = self.normalize(data, self.norm_mode)
-
-            X[i, :, :] = data
+            # Hao update Nov 6 2022
+            # augment when trace channel is less than required n_channels
+            if data.ndim == 1:
+                dat_channel = 1
+            else:
+                dat_channel = data.shape[1]
+            if dat_channel < self.n_channels:
+                temp = data
+                data = np.zeros((self.dim, self.n_channels))
+                if dat_channel == 1:
+                    data[:, 0] = temp.flatten()
+                else:
+                    data[:, 0:dat_channel] = temp
+                if dat_channel < self.n_channels:
+                    for i in range(dat_channel, temp.shape[1]):
+                        data[:, i] = data[:, 0]
+            X[i, :, :] = data[:,:self.n_channels]
 
         fl.close()
 
