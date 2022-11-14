@@ -15,6 +15,8 @@ Installation, usage, documentation and scripts are described at
 Author: [`Hao Mai`](https://www.uogeophysics.com/authors/mai/)(Developer and Maintainer)
  & [`Pascal Audet`](https://www.uogeophysics.com/authors/admin/) (Developer and Maintainer)
 
+Thanks to: [`S.Mostafa Mousavi`](https://github.com/smousavi05) contributes development advice, [`Claire Perry`](https://github.com/hkcperry) offers data support, and [`Quan Zhang`](https://github.com/QuanZhang97) tests codes. 
+
 ## Installation
 
 ### Installing from GitHub source
