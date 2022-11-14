@@ -55,6 +55,7 @@ setup(
                 'jupyter==1.0.0',
                 'voila==0.3.5',
                 'ipywidgets~=7.6.5',
+                'protobuf<=3.20.1'
 
     ],
 
