@@ -82,7 +82,7 @@ def predictor(input_dir=None,
               number_of_sampling=5,
               loss_weights=[0.03, 0.40, 0.58],
               loss_types=['binary_crossentropy', 'binary_crossentropy', 'binary_crossentropy'],
-              phase_types = ['d','P', 'S'],
+              phase_types = ['d','P', 'S'], #default phase types
               input_dimention=(6000, 3),
               normalization_mode='std',
               batch_size=500,
@@ -351,6 +351,7 @@ def predictor(input_dir=None,
             pred_set={}
             for ID in new_list:
                 dataset = fl.get('data/'+str(ID))
+
                 pred_set.update( {str(ID) : dataset})
             # generate the plots hdf5 and csv files
             plt_n, detection_memory= _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, save_figs, csvPr_gen, plt_n, detection_memory, keepPS, spLimit)
@@ -400,7 +401,7 @@ def predictor(input_dir=None,
 
 
 
-def _gen_predictor(new_list, args, model,phase_type):
+def _gen_predictor(new_list, args, model, phase_type):
 
 
     """
@@ -475,7 +476,7 @@ def _gen_predictor(new_list, args, model,phase_type):
                                                                            use_multiprocessing = args['use_multiprocessing'],
                                                                            workers = args['number_of_cpus'])
         index = 0
-        if 'd' in phase_type or 'D' in phase_type:
+        if 'd' in phase_type or 'D' in phase_type or 'Detector' in phase_type:
             # add detector prediction
             pred_DD_mean = pred_DD[index]
             index = index + 1
@@ -604,12 +605,57 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
 
 
     """
+    # find first key in the prob_dic dictionary
+    keys = []
+    for key in prob_dic.keys():
+        keys.append(key)
+    if  'DD_mean' not in keys:
+        prob_dic['DD_mean'] = {}
+    if 'PP_mean' not in keys:
+        prob_dic['PP_mean'] = {}
+    if 'SS_mean' not in keys:
+        prob_dic['SS_mean'] = {}
+    if 'PN_mean' not in keys:
+        prob_dic['PN_mean'] = {}
+    if 'SN_mean' not in keys:
+        prob_dic['SN_mean'] = {}
+    if 'PG_mean' not in keys:
+        prob_dic['PG_mean'] = {}
+    if 'SG_mean' not in keys:
+        prob_dic['SG_mean'] = {}
 
-    for ts in range(prob_dic['DD_mean'].shape[0]):
+    for ts in range(prob_dic[keys[0]].shape[0]):
         evi =  new_list[ts]
         dataset = pred_set[evi]
         dat = np.array(dataset)
-
+        # Hao update Nov 6 2022
+        # convert data format to the one that is used in the prediction
+        if dat.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+            dat = np.transpose(dat)
+        # check data shape e.g, sample length < required n_samples, start duplicating
+        if dat.shape[0] < args["input_dimention"][0]:
+            duplicate_len = int(args["input_dimention"][0] - dat.shape[0])
+            dat = np.concatenate((dat, dat[0:duplicate_len, :]))
+        else:
+            # check data shape e.g, sample length > required n_samples, start trimming
+            if dat.shape[0] > args["input_dimention"][0]:
+                dat = dat[0:args["input_dimention"][0], :]
+        # Hao update Nov 6 2022
+        # augment when trace channel is less than required n_channels
+        if dat.ndim == 1:
+            dat_channel = 1
+        else:
+            dat_channel = dat.shape[1]
+        if dat_channel < args["input_dimention"][1]:
+            temp = dat
+            dat = np.zeros((args["input_dimention"][0], args["input_dimention"][1]))
+            if dat_channel == 1:
+                dat[:, 0] = temp.flatten()
+            else:
+                dat[:, 0:dat_channel] = temp
+            if dat_channel < args["input_dimention"][1]:
+                for i in range(dat_channel, temp.shape[1]):
+                    dat[:, i] = dat[:, 0]
 
         if args['output_probabilities']:
 
@@ -626,10 +672,19 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
             HDF_PROB.create_dataset('probabilities/'+str(evi), probs.shape, data=probs, dtype= np.float32)
             HDF_PROB.create_dataset('uncertainties/'+str(evi), uncs.shape, data=uncs, dtype= np.float32)
             HDF_PROB.flush()
+        global matches
+        global matches2
+        global matches3
+        matches ={}
+        matches2 ={}
+        matches3 ={}
 
-        if 'DD_mean' in prob_dic.keys() and 'PP_mean' in prob_dic.keys() and 'SS_mean' in prob_dic.keys():
+        if 'DD_mean' in keys and 'PP_mean' in keys and 'SS_mean' in keys:
             matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PP_mean'][ts], prob_dic['SS_mean'][ts],
                                             prob_dic['DD_std'][ts], prob_dic['PP_std'][ts], prob_dic['SS_std'][ts])
+        else:
+            prob_dic['PP_mean'][ts] = None
+            prob_dic['SS_mean'][ts] = None
 
         if keepPS:
             if (len(matches) >= 1) and (matches[list(matches)[0]][3] and matches[list(matches)[0]][6]):
@@ -654,56 +709,73 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
                 pre_write = len(detection_memory)
                 detection_memory=_output_writter_prediction(dataset, predict_writer, csvPr_gen, matches, snr, detection_memory)
                 post_write = len(detection_memory)
-                if plt_n < args['number_of_plots'] and post_write > pre_write:
-                    _plotter_prediction(dat, evi, args, save_figs,
-                                          prob_dic['DD_mean'][ts],
-                                          prob_dic['PP_mean'][ts],
-                                          prob_dic['SS_mean'][ts],
-                                          prob_dic['DD_std'][ts],
-                                          prob_dic['PP_std'][ts],
-                                          prob_dic['SS_std'][ts],
-                                          matches)
-                    plt_n += 1 ;
+                # if plt_n < args['number_of_plots'] and post_write > pre_write:
+                #     _plotter_prediction(dat, evi, args, save_figs,
+                #                           prob_dic['DD_mean'][ts],
+                #                           prob_dic['PP_mean'][ts],
+                #                           prob_dic['SS_mean'][ts],
+                #                           prob_dic['DD_std'][ts],
+                #                           prob_dic['PP_std'][ts],
+                #                           prob_dic['SS_std'][ts],
+                #                           matches, keys)
+                #     plt_n += 1 ;
         # Pn and Sn Hao Sept.2022
         # bug: cannot display other phases's name on plots, e.g., Pg, Sg and Pn, Sn
-        if 'DD_mean' in prob_dic.keys() and 'PN_mean' in prob_dic.keys() and 'SN_mean' in prob_dic.keys():
-            matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PN_mean'][ts], prob_dic['SN_mean'][ts],
+        if 'DD_mean' in keys and 'PN_mean' in keys and 'SN_mean' in keys:
+            matches2, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PN_mean'][ts], prob_dic['SN_mean'][ts],
                                             prob_dic['DD_std'][ts], prob_dic['PN_std'][ts], prob_dic['SN_std'][ts])
-            if (len(matches) >= 1) and ((matches[list(matches)[0]][3] or matches[list(matches)[0]][6])):
-                snr = [_get_snr(dat, matches[list(matches)[0]][3], window = 100), _get_snr(dat, matches[list(matches)[0]][6], window = 100)]
+            if (len(matches2) >= 1) and ((matches2[list(matches2)[0]][3] or matches2[list(matches2)[0]][6])):
+                snr = [_get_snr(dat, matches2[list(matches2)[0]][3], window = 100), _get_snr(dat, matches2[list(matches2)[0]][6], window = 100)]
                 pre_write = len(detection_memory)
-                detection_memory=_output_writter_prediction(dataset, predict_writer, csvPr_gen, matches, snr, detection_memory)
+                detection_memory=_output_writter_prediction(dataset, predict_writer, csvPr_gen, matches2, snr, detection_memory)
                 post_write = len(detection_memory)
-                if plt_n < args['number_of_plots'] and post_write > pre_write:
-                    _plotter_prediction(dat, evi, args, save_figs,
-                                          prob_dic['DD_mean'][ts],
-                                          prob_dic['PN_mean'][ts],
-                                          prob_dic['SN_mean'][ts],
-                                          prob_dic['DD_std'][ts],
-                                          prob_dic['PN_std'][ts],
-                                          prob_dic['SN_std'][ts],
-                                          matches)
-                    plt_n += 1 ;
+                # if plt_n < args['number_of_plots'] and post_write > pre_write:
+                #     _plotter_prediction(dat, evi, args, save_figs,
+                #                           prob_dic['DD_mean'][ts],
+                #                           prob_dic['PN_mean'][ts],
+                #                           prob_dic['SN_mean'][ts],
+                #                           prob_dic['DD_std'][ts],
+                #                           prob_dic['PN_std'][ts],
+                #                           prob_dic['SN_std'][ts],
+                #                           matches, keys)
+                #     plt_n += 1 ;
+        else:
+            prob_dic['PN_mean'][ts] = None
+            prob_dic['SN_mean'][ts] = None
         # Pg and Sg Hao Sept.2022
         # bug: cannot display other phases's name on plots, e.g., Pg, Sg and Pn, Sn
-        if 'DD_mean' in prob_dic.keys() and 'PG_mean' in prob_dic.keys() and 'SG_mean' in prob_dic.keys():
-            matches, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PG_mean'][ts], prob_dic['SG_mean'][ts],
+        if 'DD_mean' in keys and 'PG_mean' in keys and 'SG_mean' in keys:
+            matches3, pick_errors, yh3 =  picker(args, prob_dic['DD_mean'][ts], prob_dic['PG_mean'][ts], prob_dic['SG_mean'][ts],
                                             prob_dic['DD_std'][ts], prob_dic['PG_std'][ts], prob_dic['SG_std'][ts])
-            if (len(matches) >= 1) and ((matches[list(matches)[0]][3] or matches[list(matches)[0]][6])):
-                snr = [_get_snr(dat, matches[list(matches)[0]][3], window = 100), _get_snr(dat, matches[list(matches)[0]][6], window = 100)]
+            if (len(matches3) >= 1) and ((matches3[list(matches3)[0]][3] or matches3[list(matches3)[0]][6])):
+                snr = [_get_snr(dat, matches3[list(matches3)[0]][3], window = 100), _get_snr(dat, matches3[list(matches3)[0]][6], window = 100)]
                 pre_write = len(detection_memory)
-                detection_memory=_output_writter_prediction(dataset, predict_writer, csvPr_gen, matches, snr, detection_memory)
+                detection_memory=_output_writter_prediction(dataset, predict_writer, csvPr_gen, matches3, snr, detection_memory)
                 post_write = len(detection_memory)
-                if plt_n < args['number_of_plots'] and post_write > pre_write:
-                    _plotter_prediction(dat, evi, args, save_figs,
-                                          prob_dic['DD_mean'][ts],
-                                          prob_dic['PG_mean'][ts],
-                                          prob_dic['SG_mean'][ts],
-                                          prob_dic['DD_std'][ts],
-                                          prob_dic['PG_std'][ts],
-                                          prob_dic['SG_std'][ts],
-                                          matches)
-                    plt_n += 1 ;
+                # if plt_n < args['number_of_plots'] and post_write > pre_write:
+                #     _plotter_prediction(dat, evi, args, save_figs,
+                #                           prob_dic['DD_mean'][ts],
+                #                           prob_dic['PG_mean'][ts],
+                #                           prob_dic['SG_mean'][ts],
+                #                           prob_dic['DD_std'][ts],
+                #                           prob_dic['PG_std'][ts],
+                #                           prob_dic['SG_std'][ts],
+                #                           matches, keys)
+                #     plt_n += 1 ;
+        else:
+            prob_dic['PG_mean'][ts] = None
+            prob_dic['SG_mean'][ts] = None
+        if plt_n < args['number_of_plots'] and (matches or matches2 or matches3):
+            _plotter_mul_prediction(dat, evi, args, save_figs, matches, keys, matches2, matches3,
+                                    prob_dic['DD_mean'][ts],
+                                    prob_dic['PP_mean'][ts],
+                                    prob_dic['SS_mean'][ts],
+                                    prob_dic['PN_mean'][ts],
+                                    prob_dic['SN_mean'][ts],
+                                    prob_dic['PG_mean'][ts],
+                                    prob_dic['SG_mean'][ts])
+            plt_n += 1;
+
     return plt_n, detection_memory
 
 
@@ -743,21 +815,34 @@ def _output_writter_prediction(dataset, predict_writer, csvPr, matches, snr, det
     """
 
     trace_name = dataset.attrs["trace_name"]
-    station_name = dataset.attrs["receiver_code"]
-    station_lat = dataset.attrs["receiver_latitude"]
-    station_lon = dataset.attrs["receiver_longitude"]
-    station_elv = dataset.attrs["receiver_elevation_m"]
-    start_time = dataset.attrs["trace_start_time"]
-    station_name = "{:<4}".format(station_name)
-    network_name = dataset.attrs["network_code"]
-    network_name = "{:<2}".format(network_name)
+    try:
+        station_name = dataset.attrs["receiver_code"]
+        station_lat = dataset.attrs["receiver_latitude"]
+        station_lon = dataset.attrs["receiver_longitude"]
+        station_elv = dataset.attrs["receiver_elevation_m"]
+        start_time = dataset.attrs["trace_start_time"]
+        station_name = "{:<4}".format(station_name)
+        network_name = dataset.attrs["network_code"]
+        network_name = "{:<2}".format(network_name)
+    except:
+        station_lat = 0
+        station_lon = 0
+        station_elv = 0
+        start_time = 0
+        stainfo = trace_name.split('_')[0]
+        station_name = stainfo.split('.')[1]
+        network_name = stainfo.split('.')[2]
     instrument_type = trace_name.split('_')[2]
     instrument_type = "{:<2}".format(instrument_type)
-
     try:
         start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
     except Exception:
-        start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+        if not start_time == 0:
+            start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+        else:
+            start_time = trace_name.split('_')[1]
+            start_time = start_time[:14]
+            start_time = datetime.strptime(start_time, '%Y%m%d%H%M%S')
 
     def _date_convertor(r):
         if isinstance(r, str):
@@ -837,9 +922,188 @@ def _output_writter_prediction(dataset, predict_writer, csvPr, matches, snr, det
 
 
 
+def _plotter_mul_prediction(data, evi, args, save_figs, matches, keys, matches2= None, matches3= None, yh1 = None,
+                            yh2 = None, yh3=None, yh4 = None, yh5=None,yh6=None, yh7=None):
+    """
+    Adaptively generates plots of detected events waveforms, output predictions, and picked arrival times.
+
+    Parameters
+    ----------
+    data: NumPy array
+        N component raw waveform.
+
+    evi : str
+        Trace name.
+
+    args: dic
+        A dictionary containing all of the input parameters.
+
+    save_figs: str
+        Path to the folder for saving the plots.
+
+    matches: dic
+        Contains the information for the P and S detected and picked event.
+
+    matches2: dic
+        Contains the information for the P and S detected and picked event.
+
+    matches3: dic
+        Contains the information for the P and S detected and picked event.
+
+    yh1: 1D array
+        Detection probabilities.
+
+    yh2: 1D array
+        P arrival probabilities.
+
+    yh3: 1D array
+        S arrival probabilities.
+
+    yh4: 1D array
+        Pn arrival probabilities.
+
+    yh5: 1D array
+        Sn arrival probabilities.
+
+    yh6: 1D array
+        Pg arrival probabilities.
+
+    yh7: 1D array
+        Sg arrival probabilities.
 
 
-def _plotter_prediction(data, evi, args, save_figs, yh1, yh2, yh3, yh1_std, yh2_std, yh3_std, matches):
+    """
+    #fetching detector and P and S picker
+    if matches:
+        spt, sst, detected_events = [], [], []
+        for match, match_value in matches.items():
+            detected_events.append([match, match_value[0]])
+            if match_value[3]:
+                spt.append(match_value[3])
+            else:
+                spt.append(None)
+
+            if match_value[6]:
+                sst.append(match_value[6])
+            else:
+                sst.append(None)
+    if matches2:
+        spt2, sst2, detected_events2 = [], [], []
+        for match, match_value in matches2.items():
+            detected_events2.append([match, match_value[0]])
+            if match_value[3]:
+                spt2.append(match_value[3])
+            else:
+                spt2.append(None)
+
+            if match_value[6]:
+                sst2.append(match_value[6])
+            else:
+                sst2.append(None)
+    if matches3:
+        spt3, sst3, detected_events3 = [], [], []
+        for match, match_value in matches3.items():
+            detected_events3.append([match, match_value[0]])
+            if match_value[3]:
+                spt3.append(match_value[3])
+            else:
+                spt3.append(None)
+
+            if match_value[6]:
+                sst3.append(match_value[6])
+            else:
+                sst3.append(None)
+    if data.ndim == 1:
+        dat_channel = 1
+    else:
+        dat_channel = data.shape[1]
+    fig = plt.figure()
+    fig_num = dat_channel + 1
+    for i in range(fig_num-1):
+        # plot the n-component raw data
+        ax = fig.add_subplot(fig_num, 1, i+1)
+        plt.plot(data[:, i], 'k')
+        ymin, ymax = ax.get_ylim()
+        # plotting the detected P and S events
+        if matches:
+            pl = sl = None
+            if len(spt) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                ymin, ymax = ax.get_ylim()
+                for ipt, pt in enumerate(spt):
+                    if pt and ipt == 0:
+                        pl = plt.vlines(int(pt), ymin, ymax, color='c', linewidth=1.5, label='Picked P')
+                    elif pt and ipt > 0:
+                        pl = plt.vlines(int(pt), ymin, ymax, color='c', linewidth=1.5)
+
+            if len(sst) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                for ist, st in enumerate(sst):
+                    if st and ist == 0:
+                        sl = plt.vlines(int(st), ymin, ymax, color='m', linewidth=1.5, label='Picked S')
+                    elif st and ist > 0:
+                        sl = plt.vlines(int(st), ymin, ymax, color='m', linewidth=1.5)
+        if matches2:
+            pl2 = sl2 = None
+            if len(spt2) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                ymin, ymax = ax.get_ylim()
+                for ipt, pt in enumerate(spt2):
+                    if pt and ipt == 0:
+                        pl2 = plt.vlines(int(pt), ymin, ymax, color='cyan', linewidth=1.5, label='Picked Pn')
+                    elif pt and ipt > 0:
+                        pl2 = plt.vlines(int(pt), ymin, ymax, color='cyan', linewidth=1.5)
+
+            if len(sst2) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                for ist, st in enumerate(sst2):
+                    if st and ist == 0:
+                        sl2 = plt.vlines(int(st), ymin, ymax, color='m', linewidth=1.5, label='Picked Sn')
+                    elif st and ist > 0:
+                        sl2 = plt.vlines(int(st), ymin, ymax, color='fuchsia', linewidth=1.5)
+        if matches3:
+            pl3 = sl3 = None
+            if len(spt3) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                ymin, ymax = ax.get_ylim()
+                for ipt, pt in enumerate(spt3):
+                    if pt and ipt == 0:
+                        pl3 = plt.vlines(int(pt), ymin, ymax, color='dodgerblue', linewidth=1.5, label='Picked Pg')
+                    elif pt and ipt > 0:
+                        pl3 = plt.vlines(int(pt), ymin, ymax, color='dodgerblue', linewidth=1.5)
+
+            if len(sst3) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                for ist, st in enumerate(sst3):
+                    if st and ist == 0:
+                        sl3 = plt.vlines(int(st), ymin, ymax, color='crimson', linewidth=1.5, label='Picked Sg')
+                    elif st and ist > 0:
+                        sl3 = plt.vlines(int(st), ymin, ymax, color='crimson', linewidth=1.5)
+        plt.rcParams["figure.figsize"] = (16, 9)
+        #plt.text(0, 10000, "E", fontsize=16)
+        if i ==0:
+            plt.title('Trace Name: ' +str(evi), fontsize=16)
+        plt.tight_layout()
+        plt.legend(loc='upper right', borderaxespad=0., fontsize=16)
+        plt.ylabel('Amplitude\nCounts', fontsize=16)
+    # plot the detection results
+    i = i+1
+    ax = fig.add_subplot(fig_num, 1, i + 1)
+    # plotting the detected P and S events
+    if matches:
+        plt.plot(yh2, '--', color='deepskyblue', alpha=0.5, linewidth=1.5, label='P  Prediction')
+        plt.plot(yh3, '--', color='deeppink', alpha=0.5, linewidth=1.5, label='S  Prediction')
+    if matches2:
+        plt.plot(yh4, '--', color='cyan', alpha=0.5, linewidth=1.5, label='Pn Prediction')
+        plt.plot(yh5, '--', color='fuchsia', alpha=0.5, linewidth=1.5, label='Sn Prediction')
+    if matches3:
+        plt.plot(yh6, '--', color='dodgerblue', alpha=0.5, linewidth=1.5, label='Pg Prediction')
+        plt.plot(yh7, '--', color='crimson', alpha=0.5, linewidth=1.5, label='Sg Prediction')
+    plt.rcParams["figure.figsize"] = (16, 9)
+    plt.tight_layout()
+    plt.legend(loc = 'upper right', borderaxespad=0., fontsize = 16)
+    plt.ylabel('Probability\n', fontsize=16)
+    plt.xlabel('Sample', fontsize=16)
+    fig.savefig(os.path.join(save_figs, str(evi) + '.jpg'), dpi=300)
+    plt.close(fig)
+    plt.clf()
+
+
+def _plotter_prediction(data, evi, args, save_figs, yh1, yh2, yh3, yh1_std, yh2_std, yh3_std, matches, keys):
 
     """
 
@@ -1273,6 +1537,8 @@ def _plotter_prediction(data, evi, args, save_figs, yh1, yh2, yh3, yh1_std, yh2_
                 plt.text(7000, 0.1, str(EQT_VERSION), fontdict=font)
 
         else:
+            # Simple plot
+            # Hao Nov 3 2022
             plt.plot(x, yh1, '--', color='g', alpha = 0.5, linewidth=1.5, label='Earthquake')
             plt.plot(x, yh2, '--', color='b', alpha = 0.5, linewidth=1.5, label='P_arrival')
             plt.plot(x, yh3, '--', color='r', alpha = 0.5, linewidth=1.5, label='S_arrival')

@@ -72,7 +72,8 @@ def tester(input_hdf5=None,
            mode='generator',
            batch_size=500,
            gpuid=None,
-           gpu_limit=None):
+           gpu_limit=None,
+           phase_types=['d', 'P', 'S']): #default phase types
 
     """
 
@@ -174,7 +175,8 @@ def tester(input_hdf5=None,
     "mode": mode,
     "batch_size": batch_size,
     "gpuid": gpuid,
-    "gpu_limit": gpu_limit
+    "gpu_limit": gpu_limit,
+    "phase_types": phase_types
     }
 
 
@@ -223,12 +225,7 @@ def tester(input_hdf5=None,
                           'trace_category',
                           'trace_start_time',
                           'source_magnitude',
-                          'p_arrival_sample',
-                          'p_status',
-                          'p_weight',
-                          's_arrival_sample',
-                          's_status',
-                          's_weight',
+                          'arrivals',
                           'receiver_type',
 
                           'number_of_detections',
@@ -239,11 +236,31 @@ def tester(input_hdf5=None,
                           'P_probability',
                           'P_uncertainty',
                           'P_error',
+                          #Pg
+                          'Pg_pick',
+                          'Pg_probability',
+                          'Pg_uncertainty',
+                          'Pg_error',
+                           #Pn
+                           'Pn_pick',
+                           'Pn_probability',
+                           'Pn_uncertainty',
+                           'Pn_error',
 
                           'S_pick',
                           'S_probability',
                           'S_uncertainty',
-                          'S_error'
+                          'S_error',
+                          # Sg
+                          'Sg_pick',
+                          'Sg_probability',
+                          'Sg_uncertainty',
+                          'Sg_error',
+                          # Sn
+                          'Sn_pick',
+                          'Sn_probability',
+                          'Sn_uncertainty',
+                          'Sn_error'
                           ])
     csvTst.flush()
 
@@ -369,7 +386,7 @@ def tester(input_hdf5=None,
 
                 plt_n += 1
 
-
+        # Generator mode
         else:
             params_test = {'file_name': str(args['input_hdf5']),
                            'dim': args['input_dimention'][0],
@@ -378,7 +395,7 @@ def tester(input_hdf5=None,
                            'norm_mode': args['normalization_mode']}
 
             test_generator = DataGeneratorTest(new_list, **params_test)
-
+            # uncertainty estimation
             if args['estimate_uncertainty']:
                 pred_DD = []
                 pred_PP = []
@@ -400,16 +417,76 @@ def tester(input_hdf5=None,
                 pred_SS = np.array(pred_SS).reshape(args['number_of_sampling'], len(new_list), params_test['dim'])
                 pred_SS_mean = pred_SS.mean(axis=0)
                 pred_SS_std = pred_SS.std(axis=0)
-
+            # Use Simple Prediction Mode
             else:
-                pred_DD_mean, pred_PP_mean, pred_SS_mean = model.predict_generator(generator=test_generator)
-                pred_DD_mean = pred_DD_mean.reshape(pred_DD_mean.shape[0], pred_DD_mean.shape[1])
-                pred_PP_mean = pred_PP_mean.reshape(pred_PP_mean.shape[0], pred_PP_mean.shape[1])
-                pred_SS_mean = pred_SS_mean.reshape(pred_SS_mean.shape[0], pred_SS_mean.shape[1])
-
-                pred_DD_std = np.zeros((pred_DD_mean.shape))
-                pred_PP_std = np.zeros((pred_PP_mean.shape))
-                pred_SS_std = np.zeros((pred_SS_mean.shape))
+                pred_DD = model.predict_generator(generator=test_generator)
+                index = 0
+                prob_dic = dict()
+                if 'd' in args["phase_types"] or 'D' in args["phase_types"] or 'Detector' in args["phase_types"]:
+                    # add detector prediction
+                    pred_DD_mean = pred_DD[index]
+                    index = index + 1
+                    pred_DD_mean = pred_DD_mean.reshape(pred_DD_mean.shape[0], pred_DD_mean.shape[1])
+                    pred_DD_std = np.zeros((pred_DD_mean.shape))
+                    prob_dic['DD_mean'] = pred_DD_mean
+                    prob_dic['DD_std'] = pred_DD_std
+                for picker_name in args["phase_types"]:
+                    if picker_name == 'P':
+                        # add P-type output prediction
+                        pred_PP_mean = pred_DD[index]
+                        pred_PP_mean = pred_PP_mean.reshape(pred_PP_mean.shape[0], pred_PP_mean.shape[1])
+                        pred_PP_std = np.zeros((pred_PP_mean.shape))
+                        prob_dic['PP_mean'] = pred_PP_mean
+                        prob_dic['PP_std'] = pred_PP_std
+                        index = index + 1
+                    if picker_name == 'S':
+                        # add S-type output prediction
+                        pred_SS_mean = pred_DD[index]
+                        pred_SS_mean = pred_SS_mean.reshape(pred_SS_mean.shape[0], pred_SS_mean.shape[1])
+                        pred_SS_std = np.zeros((pred_SS_mean.shape))
+                        prob_dic['SS_mean'] = pred_SS_mean
+                        prob_dic['SS_std'] = pred_SS_std
+                        index = index + 1
+                    if picker_name == 'Pn':
+                        # add Pn-type output prediction
+                        pred_PN_mean = pred_DD[index]
+                        pred_PN_mean = pred_PN_mean.reshape(pred_PN_mean.shape[0], pred_PN_mean.shape[1])
+                        pred_PN_std = np.zeros((pred_PN_mean.shape))
+                        prob_dic['PN_mean'] = pred_PN_mean
+                        prob_dic['PP_std'] = pred_PN_std
+                        index = index + 1
+                    if picker_name == 'Sn':
+                        # add Sn-type output channel
+                        pred_SN_mean = pred_DD[index]
+                        pred_SN_mean = pred_SN_mean.reshape(pred_SN_mean.shape[0], pred_SN_mean.shape[1])
+                        pred_SN_std = np.zeros((pred_SN_mean.shape))
+                        prob_dic['SN_mean'] = pred_SN_mean
+                        prob_dic['SS_std'] = pred_SN_std
+                        index = index + 1
+                    if picker_name == 'Pg':
+                        # add Pg-type output channel
+                        pred_PG_mean = pred_DD[index]
+                        pred_PG_mean = pred_PG_mean.reshape(pred_PG_mean.shape[0], pred_PG_mean.shape[1])
+                        pred_PG_std = np.zeros((pred_PG_mean.shape))
+                        prob_dic['PG_mean'] = pred_PG_mean
+                        prob_dic['PG_std'] = pred_PG_std
+                        index = index + 1
+                    if picker_name == 'Sg':
+                        # add Sg-type output channel
+                        pred_SG_mean = pred_DD[index]
+                        pred_SG_mean = pred_SG_mean.reshape(pred_SG_mean.shape[0], pred_SG_mean.shape[1])
+                        pred_SG_std = np.zeros((pred_SG_mean.shape))
+                        prob_dic['SG_mean'] = pred_SG_mean
+                        prob_dic['SG_std'] = pred_SG_std
+                        index = index + 1
+                #pred_DD_mean, pred_PP_mean, pred_SS_mean = model.predict_generator(generator=test_generator)
+                # pred_DD_mean = pred_DD_mean.reshape(pred_DD_mean.shape[0], pred_DD_mean.shape[1])
+                # pred_PP_mean = pred_PP_mean.reshape(pred_PP_mean.shape[0], pred_PP_mean.shape[1])
+                # pred_SS_mean = pred_SS_mean.reshape(pred_SS_mean.shape[0], pred_SS_mean.shape[1])
+                #
+                # pred_DD_std = np.zeros((pred_DD_mean.shape))
+                # pred_PP_std = np.zeros((pred_PP_mean.shape))
+                # pred_SS_std = np.zeros((pred_SS_mean.shape))
 
             test_set={}
             fl = h5py.File(args['input_hdf5'], 'r')
@@ -419,41 +496,153 @@ def tester(input_hdf5=None,
                 elif ID.split('_')[-1] == 'NO':
                     dataset = fl.get('data/'+str(ID))
                 test_set.update( {str(ID) : dataset})
+            # global matches
+            # global matches2
+            # global matches3
+            matches = {}
+            matches2 = {}
+            matches3 = {}
+            global pick_errors2
+            global pick_errors3
+            keys = []
+            for key in prob_dic.keys():
+                keys.append(key)
+            if 'DD_mean' not in keys:
+                prob_dic['DD_mean'] = {}
+            if 'PP_mean' not in keys:
+                prob_dic['PP_mean'] = {}
+            if 'SS_mean' not in keys:
+                prob_dic['SS_mean'] = {}
+            if 'PN_mean' not in keys:
+                prob_dic['PN_mean'] = {}
+            if 'SN_mean' not in keys:
+                prob_dic['SN_mean'] = {}
+            if 'PG_mean' not in keys:
+                prob_dic['PG_mean'] = {}
+            if 'SG_mean' not in keys:
+                prob_dic['SG_mean'] = {}
 
-            for ts in range(pred_DD_mean.shape[0]):
+            for ts in range(prob_dic[keys[0]].shape[0]):
                 evi =  new_list[ts]
                 dataset = test_set[evi]
-
-                try:
-                    spt = int(dataset.attrs['p_arrival_sample']);
-                except Exception:
-                    spt = None
-
-                try:
-                    sst = int(dataset.attrs['s_arrival_sample']);
-                except Exception:
-                    sst = None
-
-                matches, pick_errors, yh3=picker(args, pred_DD_mean[ts], pred_PP_mean[ts], pred_SS_mean[ts],
+                # matches, pick_errors, yh3=picker(args, pred_DD_mean[ts], pred_PP_mean[ts], pred_SS_mean[ts],
+                #                                        pred_DD_std[ts], pred_PP_std[ts], pred_SS_std[ts], spt, sst)
+                if 'DD_mean' in keys and 'PP_mean' in keys and 'SS_mean' in keys:
+                    # Load P, S arrival time from new STEAD format
+                    try:
+                        arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
+                    except:
+                        arrivals = np.array([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+                    # Load P, S arrival time from original STEAD format
+                    try:
+                        arrivals[0] = int(dataset.attrs['p_arrival_sample'])
+                        arrivals[3] = int(dataset.attrs['s_arrival_sample'])
+                    except:
+                        pass
+                    spt = arrivals[0]
+                    sst = arrivals[3]
+                    matches, pick_errors, yh3 = picker(args, pred_DD_mean[ts], pred_PP_mean[ts], pred_SS_mean[ts],
                                                        pred_DD_std[ts], pred_PP_std[ts], pred_SS_std[ts], spt, sst)
+                else:
+                    prob_dic['PP_mean'][ts] = None
+                    prob_dic['SS_mean'][ts] = None
+                    spt = None
+                    sst = None
+                    pick_errors = None
 
-                _output_writter_test(args,dataset, evi, test_writer, csvTst, matches, pick_errors)
 
-                if plt_n < args['number_of_plots']:
+                if 'DD_mean' in keys and 'PN_mean' in keys and 'SN_mean' in keys:
+                    # Load Pn, Sn arrival time from new STEAD format
+                    try:
+                        arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
+                    except:
+                        arrivals = np.array([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+                    spt2 = arrivals[1]
+                    sst2 = arrivals[4]
+                    matches2, pick_errors2, yh3 = picker(args, pred_DD_mean[ts], pred_PN_mean[ts], pred_SN_mean[ts],
+                                                       pred_DD_std[ts], pred_PN_std[ts], pred_SN_std[ts], spt2, sst2)
+                else:
+                    prob_dic['PN_mean'][ts] = None
+                    prob_dic['SN_mean'][ts] = None
+                    spt2 = None
+                    sst2 = None
+                    pick_errors2 = None
 
-                    _plotter(dataset,
-                                evi,
-                                args,
-                                save_figs,
-                                pred_DD_mean[ts],
-                                pred_PP_mean[ts],
-                                pred_SS_mean[ts],
-                                pred_DD_std[ts],
-                                pred_PP_std[ts],
-                                pred_SS_std[ts],
-                                matches)
+                if 'DD_mean' in keys and 'PG_mean' in keys and 'SG_mean' in keys:
+                    # Load Pg, Sg arrival time from new STEAD format
+                    try:
+                        arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
+                    except:
+                        arrivals = np.array([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+                    spt3 = arrivals[2]
+                    sst3 = arrivals[5]
+                    matches3, pick_errors3, yh3 = picker(args, pred_DD_mean[ts], pred_PG_mean[ts], pred_SG_mean[ts],
+                                                       pred_DD_std[ts], pred_PG_std[ts], pred_SG_std[ts], spt3, sst3)
+                else:
+                    prob_dic['PG_mean'][ts] = None
+                    prob_dic['SG_mean'][ts] = None
+                    spt3 = None
+                    sst3 = None
+                    pick_errors3 = None
+                if plt_n < args['number_of_plots'] and (matches or matches2 or matches3):
+                    dat = np.array(dataset)
+                    # Hao update Nov 6 2022
+                    # convert data format to the one that is used in the prediction
+                    if dat.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                        dat = np.transpose(dat)
+                    # check data shape e.g, sample length < required n_samples, start duplicating
+                    if dat.shape[0] < args["input_dimention"][0]:
+                        duplicate_len = int(args["input_dimention"][0] - dat.shape[0])
+                        dat = np.concatenate((dat, dat[0:duplicate_len, :]))
+                    else:
+                        # check data shape e.g, sample length > required n_samples, start trimming
+                        if dat.shape[0] > args["input_dimention"][0]:
+                            dat = dat[0:args["input_dimention"][0], :]
+                    # Hao update Nov 6 2022
+                    # augment when trace channel is less than required n_channels
+                    if dat.ndim == 1:
+                        dat_channel = 1
+                    else:
+                        dat_channel = dat.shape[1]
+                    if dat_channel < args["input_dimention"][1]:
+                        temp = dat
+                        dat = np.zeros((args["input_dimention"][0], args["input_dimention"][1]))
+                        if dat_channel == 1:
+                            dat[:, 0] = temp.flatten()
+                        else:
+                            dat[:, 0:dat_channel] = temp
+                        if dat_channel < args["input_dimention"][1]:
+                            for i in range(dat_channel, temp.shape[1]):
+                                dat[:, i] = dat[:, 0]
 
-                plt_n += 1
+                    _plotter_mul_prediction(dat, evi, args, save_figs, matches, keys, matches2, matches3,
+                                        prob_dic['DD_mean'][ts],
+                                        prob_dic['PP_mean'][ts],
+                                        prob_dic['SS_mean'][ts],
+                                        prob_dic['PN_mean'][ts],
+                                        prob_dic['SN_mean'][ts],
+                                        prob_dic['PG_mean'][ts],
+                                        prob_dic['SG_mean'][ts],
+                                        spt, sst, spt2, sst2, spt3, sst3)
+                    _output_writter_test(args, dataset, evi, test_writer, csvTst, matches, pick_errors, matches2,
+                                         pick_errors2, matches3, pick_errors3)
+                    plt_n += 1
+
+                # if plt_n < args['number_of_plots']:
+                #
+                #     _plotter(dataset,
+                #                 evi,
+                #                 args,
+                #                 save_figs,
+                #                 pred_DD_mean[ts],
+                #                 pred_PP_mean[ts],
+                #                 pred_SS_mean[ts],
+                #                 pred_DD_std[ts],
+                #                 pred_PP_std[ts],
+                #                 pred_SS_std[ts],
+                #                 matches)
+                #
+                # plt_n += 1
     end_training = time.time()
     delta = end_training - start_training
     hour = int(delta / 3600)
@@ -498,6 +687,10 @@ def _output_writter_test(args,
                         csvfile,
                         matches,
                         pick_errors,
+                        matches2,
+                        pick_errors2,
+                        matches3,
+                        pick_errors3
                         ):
 
     """
@@ -564,43 +757,111 @@ def _output_writter_test(args,
         S_prob = None
         S_unc = None
         S_error = None
+    numberOFdetections2 = len(matches2)
+    if numberOFdetections2 != 0:
+        D_prob2 =  matches2[list(matches2)[0]][1]
+        D_unc2 = matches2[list(matches2)[0]][2]
 
-    if evi.split('_')[-1] == 'EV':
-        network_code = dataset.attrs['network_code']
-        source_id = None
-        source_distance_km = None
+        Pg_arrival2 = matches2[list(matches2)[0]][3]
+        Pg_prob2 = matches2[list(matches2)[0]][4]
+        Pg_unc2 = matches2[list(matches2)[0]][5]
+        Pg_error2 = pick_errors2[list(matches2)[0]][0]
+
+        Sg_arrival2 = matches2[list(matches2)[0]][6]
+        Sg_prob2 = matches2[list(matches2)[0]][7]
+        Sg_unc2 = matches2[list(matches2)[0]][8]
+        Sg_error2 = pick_errors2[list(matches2)[0]][1]
+    else:
+        D_prob2 = None
+        D_unc2 = None
+
+        Pg_arrival2 = None
+        Pg_prob2 = None
+        Pg_unc2 = None
+        Pg_error2 = None
+
+        Sg_arrival2 = None
+        Sg_prob2 = None
+        Sg_unc2 = None
+        Sg_error2 = None
+    numberOFdetections3 = len(matches3)
+    if numberOFdetections3 != 0:
+        D_prob3 =  matches3[list(matches3)[0]][1]
+        D_unc3 = matches3[list(matches3)[0]][2]
+
+        Pn_arrival3 = matches3[list(matches3)[0]][3]
+        Pn_prob3 = matches3[list(matches3)[0]][4]
+        Pn_unc3 = matches3[list(matches3)[0]][5]
+        Pn_error3 = pick_errors3[list(matches3)[0]][0]
+
+        Sn_arrival3 = matches3[list(matches3)[0]][6]
+        Sn_prob3 = matches3[list(matches3)[0]][7]
+        Sn_unc3 = matches3[list(matches3)[0]][8]
+        Sn_error3 = pick_errors3[list(matches3)[0]][1]
+    else:
+        D_prob3 = None
+        D_unc3 = None
+
+        Pn_arrival3 = None
+        Pn_prob3 = None
+        Pn_unc3 = None
+        Pn_error3 = None
+
+        Sn_arrival3 = None
+        Sn_prob3 = None
+        Sn_unc3 = None
+        Sn_error3 = None
+    trace_name = dataset.attrs["trace_name"]
+    stainfo = trace_name.split('_')[0]
+    station_name = stainfo.split('.')[0]
+    network_code = stainfo.split('.')[-1]
+    receiver_type = trace_name.split('_')[2]
+    receiver_type = "{:<2}".format(receiver_type)
+    source_id = None
+    source_distance_km = None
+    trace_category = trace_name.split('_')[-1]
+    source_magnitude = -1
+    p_status = 'manual'
+    p_weight = None
+    s_status = 'manual'
+    s_weight = None
+    snr_db = None
+    try:
         snr_db = np.mean(dataset.attrs['snr_db'])
-        trace_name = dataset.attrs['trace_name']
         trace_category = dataset.attrs['trace_category']
+        source_magnitude = float(dataset.attrs['source_magnitude'])
+    except:
+        pass
+    try:
         trace_start_time = dataset.attrs['trace_start_time']
-        source_magnitude = None
-        p_arrival_sample = dataset.attrs['p_arrival_sample']
-        p_status = 'manual'
-        p_weight = None
-        s_arrival_sample = dataset.attrs['s_arrival_sample']
-        s_status = None
-        s_weight = None
-        receiver_type = None
+    except Exception:
+        trace_start_time = trace_name.split('_')[1]
+        trace_start_time = trace_start_time[:14]
+    if evi.split('_')[-1] == 'EV':
+        try:
+            arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
+        except:
+            arrivals = np.array([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
+        # Load P, S arrival time from original STEAD format
+        try:
+            arrivals[0] = int(dataset.attrs['p_arrival_sample'])
+            arrivals[3] = int(dataset.attrs['s_arrival_sample'])
+        except:
+            pass
 
-    elif evi.split('_')[-1] == 'NO':
-        network_code = dataset.attrs['network_code']
-        source_id = None
-        source_distance_km = None
-        snr_db = None
-        trace_name = dataset.attrs['trace_name']
-        trace_category = dataset.attrs['trace_category']
-        trace_start_time = None
-        source_magnitude = None
+    if evi.split('_')[-1] == 'NO':
+        arrivals = np.array([np.nan, np.nan, np.nan, np.nan, np.nan, np.nan])
         p_arrival_sample = None
         p_status = 'manual'
         p_weight = None
         s_arrival_sample = None
         s_status = None
         s_weight = None
-        receiver_type = dataset.attrs['receiver_type']
+
 
     if P_unc:
         P_unc = round(P_unc, 3)
+
 
 
     output_writer.writerow([network_code,
@@ -611,10 +872,9 @@ def _output_writter_test(args,
                             trace_category,
                             trace_start_time,
                             source_magnitude,
-                            p_arrival_sample,
+                            arrivals,
                             p_status,
                             p_weight,
-                            s_arrival_sample,
                             s_status,
                             s_weight,
                             receiver_type,
@@ -633,6 +893,26 @@ def _output_writter_test(args,
                             S_unc,
                             S_error,
 
+                            Pg_arrival2,
+                            Pg_prob2,
+                            Pg_unc2,
+                            Pg_error2,
+
+                            Sg_arrival2,
+                            Sg_prob2,
+                            Sg_unc2,
+                            Sg_error2,
+
+                            Pn_arrival3,
+                            Pn_prob3,
+                            Pn_unc3,
+                            Pn_error3,
+
+                            Sn_arrival3,
+                            Sn_prob3,
+                            Sn_unc3,
+                            Sn_error3
+
                             ])
 
     csvfile.flush()
@@ -640,7 +920,199 @@ def _output_writter_test(args,
 
 
 
+def _plotter_mul_prediction(data, evi, args, save_figs, matches, keys, matches2= None, matches3= None, yh1 = None,
+                            yh2 = None, yh3=None, yh4=None, yh5=None, yh6=None, yh7=None,
+                            p=None, s=None, p2=None, s2=None, p3=None, s3=None):
+    """
+    Adaptively generates plots of detected events waveforms, output predictions, and picked arrival times.
 
+    Parameters
+    ----------
+    data: NumPy array
+        N component raw waveform.
+
+    evi : str
+        Trace name.
+
+    args: dic
+        A dictionary containing all of the input parameters.
+
+    save_figs: str
+        Path to the folder for saving the plots.
+
+    matches: dic
+        Contains the information for the P and S detected and picked event.
+
+    matches2: dic
+        Contains the information for the P and S detected and picked event.
+
+    matches3: dic
+        Contains the information for the P and S detected and picked event.
+
+    yh1: 1D array
+        Detection probabilities.
+
+    yh2: 1D array
+        P arrival probabilities.
+
+    yh3: 1D array
+        S arrival probabilities.
+
+    yh4: 1D array
+        Pn arrival probabilities.
+
+    yh5: 1D array
+        Sn arrival probabilities.
+
+    yh6: 1D array
+        Pg arrival probabilities.
+
+    yh7: 1D array
+        Sg arrival probabilities.
+
+
+    """
+    #fetching detector and P and S picker
+    if matches:
+        spt, sst, detected_events = [], [], []
+        for match, match_value in matches.items():
+            detected_events.append([match, match_value[0]])
+            if match_value[3]:
+                spt.append(match_value[3])
+            else:
+                spt.append(None)
+
+            if match_value[6]:
+                sst.append(match_value[6])
+            else:
+                sst.append(None)
+    if matches2:
+        spt2, sst2, detected_events2 = [], [], []
+        for match, match_value in matches2.items():
+            detected_events2.append([match, match_value[0]])
+            if match_value[3]:
+                spt2.append(match_value[3])
+            else:
+                spt2.append(None)
+
+            if match_value[6]:
+                sst2.append(match_value[6])
+            else:
+                sst2.append(None)
+    if matches3:
+        spt3, sst3, detected_events3 = [], [], []
+        for match, match_value in matches3.items():
+            detected_events3.append([match, match_value[0]])
+            if match_value[3]:
+                spt3.append(match_value[3])
+            else:
+                spt3.append(None)
+
+            if match_value[6]:
+                sst3.append(match_value[6])
+            else:
+                sst3.append(None)
+    if data.ndim == 1:
+        dat_channel = 1
+    else:
+        dat_channel = data.shape[1]
+    fig = plt.figure()
+    fig_num = dat_channel + 1
+    for i in range(fig_num-1):
+        # plot the n-component raw data
+        ax = fig.add_subplot(fig_num, 1, i+1)
+        plt.plot(data[:, i], 'k')
+        ymin, ymax = ax.get_ylim()
+        ground_truth_min = ymin
+        ground_truth_max = ymax
+        ymin = int(ymin*0.8)
+        ymax = int(ymax*0.8)
+        # plotting the detected P and S events
+        if matches:
+            pl = sl = None
+            plp = plt.vlines(int(p), ground_truth_min, ground_truth_max, color='b', linewidth=2, label='Manual-Picked P')
+            slp = plt.vlines(int(s), ground_truth_min, ground_truth_max, color='r', linewidth=2, label='Manual-Picked S')
+            if len(spt) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                ymin, ymax = ax.get_ylim()
+                ground_truth_min = ymin
+                ground_truth_max = ymax
+                ymin = int(ymin * 0.8)
+                ymax = int(ymax * 0.8)
+                for ipt, pt in enumerate(spt):
+                    if pt and ipt == 0:
+                        pl = plt.vlines(int(pt), ymin, ymax, color='c', linewidth=1.5, label='Picked P')
+                    elif pt and ipt > 0:
+                        pl = plt.vlines(int(pt), ymin, ymax, color='c', linewidth=1.5)
+
+            if len(sst) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                for ist, st in enumerate(sst):
+                    if st and ist == 0:
+                        sl = plt.vlines(int(st), ymin, ymax, color='m', linewidth=1.5, label='Picked S')
+                    elif st and ist > 0:
+                        sl = plt.vlines(int(st), ymin, ymax, color='m', linewidth=1.5)
+        if matches2:
+            pl2 = sl2 = None
+            plp2 = plt.vlines(int(p2), ground_truth_min, ground_truth_max, color='cadetblue', linewidth=2, label='Manual-Picked Pn')
+            slp2 = plt.vlines(int(s2), ground_truth_min, ground_truth_max, color='tomato', linewidth=2, label='Manual-Picked Sn')
+            if len(spt2) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                for ipt, pt in enumerate(spt2):
+                    if pt and ipt == 0:
+                        pl2 = plt.vlines(int(pt), ymin, ymax, color='cyan', linewidth=1.5, label='Picked Pn')
+                    elif pt and ipt > 0:
+                        pl2 = plt.vlines(int(pt), ymin, ymax, color='cyan', linewidth=1.5)
+            if len(sst2) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                for ist, st in enumerate(sst2):
+                    if st and ist == 0:
+                        sl2 = plt.vlines(int(st), ymin, ymax, color='m', linewidth=1.5, label='Picked Sn')
+                    elif st and ist > 0:
+                        sl2 = plt.vlines(int(st), ymin, ymax, color='fuchsia', linewidth=1.5)
+        if matches3:
+            pl3 = sl3 = None
+            plp3 = plt.vlines(int(p3), ground_truth_min, ground_truth_max, color='steelblue', linewidth=2, label='Manual-Picked Pg')
+            slp3 = plt.vlines(int(s3), ground_truth_min, ground_truth_max, color='sienna', linewidth=2, label='Manual-Picked Sg')
+            if len(spt3) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                ymin, ymax = ax.get_ylim()
+                for ipt, pt in enumerate(spt3):
+                    if pt and ipt == 0:
+                        pl3 = plt.vlines(int(pt), ymin, ymax, color='dodgerblue', linewidth=1.5, label='Picked Pg')
+                    elif pt and ipt > 0:
+                        pl3 = plt.vlines(int(pt), ymin, ymax, color='dodgerblue', linewidth=1.5)
+
+            if len(sst3) > 0 and np.count_nonzero(data[:, 0]) > 10:
+                for ist, st in enumerate(sst3):
+                    if st and ist == 0:
+                        sl3 = plt.vlines(int(st), ymin, ymax, color='crimson', linewidth=1.5, label='Picked Sg')
+                    elif st and ist > 0:
+                        sl3 = plt.vlines(int(st), ymin, ymax, color='crimson', linewidth=1.5)
+
+        plt.rcParams["figure.figsize"] = (16, 9)
+        #plt.text(0, 10000, "E", fontsize=16)
+        if i ==0:
+            plt.title('Trace Name: ' +str(evi), fontsize=16)
+        plt.tight_layout()
+        plt.legend(loc='upper right', borderaxespad=0., fontsize=16)
+        plt.ylabel('Amplitude\nCounts', fontsize=16)
+    # plot the detection results
+    i = i+1
+    ax = fig.add_subplot(fig_num, 1, i + 1)
+    # plotting the detected P and S events
+    if matches:
+        plt.plot(yh2, '--', color='deepskyblue', alpha=0.5, linewidth=1.5, label='P  Prediction')
+        plt.plot(yh3, '--', color='deeppink', alpha=0.5, linewidth=1.5, label='S  Prediction')
+    if matches2:
+        plt.plot(yh4, '--', color='cyan', alpha=0.5, linewidth=1.5, label='Pn Prediction')
+        plt.plot(yh5, '--', color='fuchsia', alpha=0.5, linewidth=1.5, label='Sn Prediction')
+    if matches3:
+        plt.plot(yh6, '--', color='dodgerblue', alpha=0.5, linewidth=1.5, label='Pg Prediction')
+        plt.plot(yh7, '--', color='crimson', alpha=0.5, linewidth=1.5, label='Sg Prediction')
+    plt.rcParams["figure.figsize"] = (16, 9)
+    plt.tight_layout()
+    plt.legend(loc = 'upper right', borderaxespad=0., fontsize = 16)
+    plt.ylabel('Probability\n', fontsize=16)
+    plt.xlabel('Sample', fontsize=16)
+    fig.savefig(os.path.join(save_figs, str(evi) + '.jpg'), dpi=300)
+    plt.close(fig)
+    plt.clf()
 def _plotter(dataset, evi, args, save_figs, yh1, yh2, yh3, yh1_std, yh2_std, yh3_std, matches):
 
 
