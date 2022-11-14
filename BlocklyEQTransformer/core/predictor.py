@@ -401,7 +401,7 @@ def predictor(input_dir=None,
 
 
 
-def _gen_predictor(new_list, args, model,phase_type):
+def _gen_predictor(new_list, args, model, phase_type):
 
 
     """
@@ -476,7 +476,7 @@ def _gen_predictor(new_list, args, model,phase_type):
                                                                            use_multiprocessing = args['use_multiprocessing'],
                                                                            workers = args['number_of_cpus'])
         index = 0
-        if 'd' in phase_type or 'D' in phase_type:
+        if 'd' in phase_type or 'D' in phase_type or 'Detector' in phase_type:
             # add detector prediction
             pred_DD_mean = pred_DD[index]
             index = index + 1

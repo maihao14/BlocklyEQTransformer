@@ -471,7 +471,7 @@ def _build_output(model, output_list = ['d','P','S']):
     decoder_S = base_model.layers[-4].output
 
     new_outputs = []
-    if 'd' in output_list or 'D' in output_list:
+    if 'd' in output_list or 'D' in output_list or 'Detector' in output_list:
         # add detector channel
         output_name = 'detector'
         d = Conv1D(1, 11, padding = 'same', activation='sigmoid', name=output_name)(decoder_D)
