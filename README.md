@@ -43,11 +43,6 @@ conda create -n bet python=3.7
 conda activate bet
 ```
 
-- Install recommended dependencies:
-
-```bash
- conda env create -f environment.yml
-```
 
 - Install `BlocklyEQTransformer` using `pip`:
 
