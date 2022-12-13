@@ -493,7 +493,7 @@ class DataGenerator(keras.utils.Sequence):
                 #    for i in range(dat_channel, temp.shape[1]):
                 #        data[:, i] = data[:, 0]
                 # option 2: padding with zeros
-             if dat_channel > self.n_channels:
+            if dat_channel > self.n_channels:
                  # trim channel to required size
                 data = data[:self.dim,:self.n_channels]
             ## augmentation
