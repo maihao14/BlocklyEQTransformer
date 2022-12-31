@@ -586,24 +586,29 @@ def tester(input_hdf5=None,
                     pick_errors3 = None
                 if plt_n < args['number_of_plots'] and (matches or matches2 or matches3):
                     dat = np.array(dataset)
-                    # Hao update Nov 6 2022
-                    # convert data format to the one that is used in the prediction
-                    if dat.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
-                        dat = np.transpose(dat)
+                    # dat_channel: int, numbers of channel
+                    # dat_dim: int, numbers of dimention
+                    if dat.ndim == 1:
+                        # original trace could be 1-component, i.e., (6000,) or (6000)
+                        dat_channel = 1
+                        dat_dim = len(dat)
+                    else:
+                        # convert data format to the one that is used in the prediction
+                        if dat.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                            dat = np.transpose(dat)
+                        # more than 1 component trace
+                        dat_channel = dat.shape[1]
+                        dat_dim = dat.shape[0]
                     # check data shape e.g, sample length < required n_samples, start duplicating
-                    if dat.shape[0] < args["input_dimention"][0]:
-                        duplicate_len = int(args["input_dimention"][0] - dat.shape[0])
+                    if dat_dim < args["input_dimention"][0]:
+                        duplicate_len = int(args["input_dimention"][0] - dat_dim)
                         dat = np.concatenate((dat, dat[0:duplicate_len, :]))
                     else:
                         # check data shape e.g, sample length > required n_samples, start trimming
-                        if dat.shape[0] > args["input_dimention"][0]:
+                        if dat_dim > args["input_dimention"][0]:
                             dat = dat[0:args["input_dimention"][0], :]
                     # Hao update Nov 6 2022
                     # augment when trace channel is less than required n_channels
-                    if dat.ndim == 1:
-                        dat_channel = 1
-                    else:
-                        dat_channel = dat.shape[1]
                     if dat_channel < args["input_dimention"][1]:
                         temp = dat
                         dat = np.zeros((args["input_dimention"][0], args["input_dimention"][1]))
@@ -612,7 +617,7 @@ def tester(input_hdf5=None,
                         else:
                             dat[:, 0:dat_channel] = temp
                         if dat_channel < args["input_dimention"][1]:
-                            for i in range(dat_channel, temp.shape[1]):
+                            for i in range(dat_channel, args["input_dimention"][1]):
                                 dat[:, i] = dat[:, 0]
 
                     _plotter_mul_prediction(dat, evi, args, save_figs, matches, keys, matches2, matches3,

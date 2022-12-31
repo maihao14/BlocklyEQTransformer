@@ -409,10 +409,19 @@ class DataGenerator(keras.utils.Sequence):
             # self.augmentation = False
             if ID.split('_')[-1] == 'EV':
                 data = np.array(dataset)
-                # Hao: transpose numpy array if original shape is (n_channels, n_samples )
-                if data.shape[0] <= 10: # assume the original shape is (n_channels, n_samples )
-                    # e.g., USGS data original shape (3,4800)
-                    data = np.transpose(data)
+                # dat_channel: int, numbers of channel
+                # dat_dim: int, numbers of dimention
+                if data.ndim == 1:
+                    # original trace could be 1-component, i.e., (6000,) or (6000)
+                    dat_channel = 1
+                    dat_dim = len(data)
+                else:
+                    # convert data format to the one that is used in the prediction
+                    if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                        data = np.transpose(data)
+                    # more than 1 component trace
+                    dat_channel = data.shape[1]
+                    dat_dim = data.shape[0]
                 # Load P, S arrival time from new STEAD format
                 try:
                     arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
@@ -430,11 +439,16 @@ class DataGenerator(keras.utils.Sequence):
                 except:
                     snr = 0
                 # check data shape
-                if data.shape[0] < self.dim:
-                    duplicate_len = int(self.dim - data.shape[0])
-                    data = np.concatenate((data, data[0:duplicate_len, :]))
+                if dat_dim < self.dim:
+                    # option 1: duplicate a original clip
+                    # duplicate_len = int(self.dim - data.shape[0])
+                    # data = np.concatenate((data, data[0:duplicate_len, :]))
+                    # option 2: padding with zero
+                    temp = data
+                    data = np.zeros((self.dim, self.n_channels))
+                    data[:dat_dim,:dat_channel] = temp
                 else:
-                    if data.shape[0] > self.dim:
+                    if dat_dim > self.dim:
                         data = data[0:self.dim, :]
                         # delete arrivals after the end of the data
                         for i in range(len(arrivals)):
@@ -442,20 +456,30 @@ class DataGenerator(keras.utils.Sequence):
                                 arrivals[i] = np.nan
             elif ID.split('_')[-1] == 'NO':
                 data = np.array(dataset)
-                if data.shape[0] <= 10: # assume the original shape is (n_channels, n_samples )
-                    # e.g., USGS data original shape (3,4800)
-                    data = np.transpose(data)
+                # dat_channel: int, numbers of channel
+                # dat_dim: int, numbers of dimention
+                if data.ndim == 1:
+                    # original trace could be 1-component, i.e., (6000,) or (6000)
+                    dat_channel = 1
+                    dat_dim = len(data)
+                else:
+                    # convert data format to the one that is used in the prediction
+                    if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                        data = np.transpose(data)
+                    # more than 1 component trace
+                    dat_channel = data.shape[1]
+                    dat_dim = data.shape[0]
                 # check data shape
-                if data.shape[0] < self.dim:
-                    duplicate_len = int(self.dim - data.shape[0])
-                    data = np.concatenate((data, data[0:duplicate_len, :]))
-                if data.shape[0] > self.dim:
+                if dat_dim < self.dim:
+                    # option 1: duplicate a original clip
+                    # duplicate_len = int(self.dim - data.shape[0])
+                    # data = np.concatenate((data, data[0:duplicate_len, :]))
+                    # option 2: padding with zero
+                    temp = data
+                    data = np.zeros((self.dim, self.n_channels))
+                    data[:dat_dim, :dat_channel] = temp
+                if dat_dim > self.dim:
                         data = data[0:self.dim, :]
-            # augment when trace channel is less than required n_channels
-            if data.ndim == 1:
-                dat_channel = 1
-            else:
-                dat_channel = data.shape[1]
             # enforce duplicate the data to the required n_channels
             if dat_channel < self.n_channels:
                 temp = data
@@ -464,9 +488,14 @@ class DataGenerator(keras.utils.Sequence):
                     data[:, 0] = temp.flatten()
                 else:
                     data[:, 0:dat_channel] = temp
-                if dat_channel < self.n_channels:
-                    for i in range(dat_channel, temp.shape[1]):
-                        data[:, i] = data[:, 0]
+                # option 1 : duplicate channels
+                # if dat_channel < self.n_channels:
+                #    for i in range(dat_channel, temp.shape[1]):
+                #        data[:, i] = data[:, 0]
+                # option 2: padding with zeros
+            if dat_channel > self.n_channels:
+                 # trim channel to required size
+                data = data[:self.dim,:self.n_channels]
             ## augmentation
             if self.augmentation == True:
                 if i <= self.batch_size//2:
