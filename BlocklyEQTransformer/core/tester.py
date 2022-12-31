@@ -1030,8 +1030,10 @@ def _plotter_mul_prediction(data, evi, args, save_figs, matches, keys, matches2=
         # plotting the detected P and S events
         if matches:
             pl = sl = None
-            plp = plt.vlines(int(p), ground_truth_min, ground_truth_max, color='b', linewidth=2, label='Manual-Picked P')
-            slp = plt.vlines(int(s), ground_truth_min, ground_truth_max, color='r', linewidth=2, label='Manual-Picked S')
+            if not p!= p:
+                plp = plt.vlines(int(p), ground_truth_min, ground_truth_max, color='b', linewidth=2, label='Manual-Picked P')
+            if not s!= s:
+                slp = plt.vlines(int(s), ground_truth_min, ground_truth_max, color='r', linewidth=2, label='Manual-Picked S')
             if len(spt) > 0 and np.count_nonzero(data[:, 0]) > 10:
                 ymin, ymax = ax.get_ylim()
                 ground_truth_min = ymin
