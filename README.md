@@ -12,10 +12,12 @@ Blockly Earthquake Transformer is a no-code, deep learning approach using the Eq
 Installation, usage, documentation and scripts are described at
  https://github.com/maihao14/BlocklyEQTransformer
 
-Author: [`Hao Mai`](https://www.uogeophysics.com/authors/mai/)(Developer and Maintainer)
- & [`Pascal Audet`](https://www.uogeophysics.com/authors/admin/) (Developer and Maintainer)
-
-Thanks to: [`S.Mostafa Mousavi`](https://github.com/smousavi05) contributes development advice, [`Claire Perry`](https://github.com/hkcperry) offers data support, and [`Quan Zhang`](https://github.com/QuanZhang97) tests codes. 
+Authors:
+- [`Hao Mai`](https://www.uogeophysics.com/authors/mai/)
+- [`Pascal Audet`](https://www.uogeophysics.com/authors/admin/)
+- [`S.Mostafa Mousavi`](https://github.com/smousavi05)
+- [`Claire Perry`](https://github.com/hkcperry)
+- [`Quan Zhang`](https://github.com/QuanZhang97)
 
 ## Installation
 
