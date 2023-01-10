@@ -422,6 +422,8 @@ class DataGenerator(keras.utils.Sequence):
                     # more than 1 component trace
                     dat_channel = data.shape[1]
                     dat_dim = data.shape[0]
+                if dat_channel > self.n_channels:
+                    dat_channel = self.n_channels
                 # Load P, S arrival time from new STEAD format
                 try:
                     arrivals = dataset.attrs['p_pn_pg_s_sn_sg']
@@ -439,25 +441,84 @@ class DataGenerator(keras.utils.Sequence):
                 except:
                     snr = 0
                 # check data shape
-                if dat_dim < self.dim:
-                    # option 1: duplicate a original clip
-                    # duplicate_len = int(self.dim - data.shape[0])
-                    # data = np.concatenate((data, data[0:duplicate_len, :]))
-                    # option 2: padding with zero
-                    temp = data
-                    data = np.zeros((self.dim, self.n_channels))
-                    data[:dat_dim,:dat_channel] = temp
+                temp = data
+                data = np.zeros((self.dim, self.n_channels))
+                attr_value = dataset.attrs.get('component', None)
+                if attr_value is not None:
+                    # label contains component information
+                    if attr_value == 'Z':
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 2] = temp
+                        else:
+                            data[:, 2] = temp[:self.dim]
+                    if attr_value == 'N' or attr_value == '2':
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 1] = temp
+                        else:
+                            data[:, 1] = temp[:self.dim]
+                    if attr_value == 'E' or attr_value == '0':
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 0] = temp
+                        else:
+                            data[:, 0] = temp[:self.dim]
                 else:
-                    if dat_dim > self.dim:
-                        data = data[0:self.dim, :]
-                        # delete arrivals after the end of the data
-                        for i in range(len(arrivals)):
-                            if arrivals[i] > self.dim:
-                                arrivals[i] = np.nan
+                    if dat_channel == 1:
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0]] = temp
+                        else:
+                            data[:, 0] = temp[:self.dim]
+                    else:
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 0:dat_channel] = temp[:, 0:dat_channel]
+                        else:
+                            data[:, 0:dat_channel] = temp[:self.dim, 0:dat_channel]
+                # if dat_dim < self.dim:
+                #     # option 1: duplicate a original clip
+                #     # duplicate_len = int(self.dim - data.shape[0])
+                #     # data = np.concatenate((data, data[0:duplicate_len, :]))
+                #     # option 2: padding with zero (recommended)
+                #     temp = data
+                #     data = np.zeros((self.dim, self.n_channels))
+                #     data[:dat_dim,:dat_channel] = temp
+                # else:
+                #     if dat_dim > self.dim:
+                #         data = data[0:self.dim, :]
+                #         # delete arrivals after the end of the data
+                #         for i in range(len(arrivals)):
+                #             if arrivals[i] > self.dim:
+                #
+                #                 arrivals[i] = np.nan
+                for i in range(len(arrivals)):
+                    if arrivals[i] > self.dim:
+                        arrivals[i] = np.nan
+                    if arrivals[i] <= 0:
+                        arrivals[i] = np.nan
             elif ID.split('_')[-1] == 'NO':
                 data = np.array(dataset)
                 # dat_channel: int, numbers of channel
                 # dat_dim: int, numbers of dimention
+                # if data.ndim == 1:
+                #     # original trace could be 1-component, i.e., (6000,) or (6000)
+                #     dat_channel = 1
+                #     dat_dim = len(data)
+                # else:
+                #     # convert data format to the one that is used in the prediction
+                #     if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                #         data = np.transpose(data)
+                #     # more than 1 component trace
+                #     dat_channel = data.shape[1]
+                #     dat_dim = data.shape[0]
+                # # check data shape
+                # if dat_dim < self.dim:
+                #     # option 1: duplicate a original clip
+                #     # duplicate_len = int(self.dim - data.shape[0])
+                #     # data = np.concatenate((data, data[0:duplicate_len, :]))
+                #     # option 2: padding with zero
+                #     temp = data
+                #     data = np.zeros((self.dim, self.n_channels))
+                #     data[:dat_dim, :dat_channel] = temp
+                # if dat_dim > self.dim:
+                #         data = data[0:self.dim, :]
                 if data.ndim == 1:
                     # original trace could be 1-component, i.e., (6000,) or (6000)
                     dat_channel = 1
@@ -469,42 +530,65 @@ class DataGenerator(keras.utils.Sequence):
                     # more than 1 component trace
                     dat_channel = data.shape[1]
                     dat_dim = data.shape[0]
+                if dat_channel > self.n_channels:
+                    dat_channel = self.n_channels
                 # check data shape
-                if dat_dim < self.dim:
-                    # option 1: duplicate a original clip
-                    # duplicate_len = int(self.dim - data.shape[0])
-                    # data = np.concatenate((data, data[0:duplicate_len, :]))
-                    # option 2: padding with zero
-                    temp = data
-                    data = np.zeros((self.dim, self.n_channels))
-                    data[:dat_dim, :dat_channel] = temp
-                if dat_dim > self.dim:
-                        data = data[0:self.dim, :]
-            # enforce duplicate the data to the required n_channels
-            if dat_channel < self.n_channels:
                 temp = data
                 data = np.zeros((self.dim, self.n_channels))
-                if dat_channel == 1:
-                    data[:, 0] = temp.flatten()
+                attr_value = dataset.attrs.get('component', None)
+                if attr_value is not None:
+                    # label contains component information
+                    if attr_value == 'Z':
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 2] = temp
+                        else:
+                            data[:, 2] = temp[:self.dim]
+                    if attr_value == 'N' or attr_value == '2':
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 1] = temp
+                        else:
+                            data[:, 1] = temp[:self.dim]
+                    if attr_value == 'E' or attr_value == '0':
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 0] = temp
+                        else:
+                            data[:, 0] = temp[:self.dim]
                 else:
-                    data[:, 0:dat_channel] = temp
-                # option 1 : duplicate channels
-                # if dat_channel < self.n_channels:
-                #    for i in range(dat_channel, temp.shape[1]):
-                #        data[:, i] = data[:, 0]
-                # option 2: padding with zeros
-            if dat_channel > self.n_channels:
-                 # trim channel to required size
-                data = data[:self.dim,:self.n_channels]
+                    if dat_channel == 1:
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0]] = temp
+                        else:
+                            data[:, 0] = temp[:self.dim]
+                    else:
+                        if temp.shape[0] < self.dim:
+                            data[:temp.shape[0], 0:dat_channel] = temp[:, 0:dat_channel]
+                        else:
+                            data[:, 0:dat_channel] = temp[:self.dim, 0:dat_channel]
+            # # enforce duplicate the data to the required n_channels
+            # if dat_channel < self.n_channels:
+            #     temp = data
+            #     data = np.zeros((self.dim, self.n_channels))
+            #     if dat_channel == 1:
+            #         data[:, 0] = temp.flatten()
+            #     else:
+            #         data[:, 0:dat_channel] = temp
+            #     # option 1 : duplicate channels
+            #     # if dat_channel < self.n_channels:
+            #     #    for i in range(dat_channel, temp.shape[1]):
+            #     #        data[:, i] = data[:, 0]
+            #     # option 2: padding with zeros
+            # if dat_channel > self.n_channels:
+            #      # trim channel to required size
+            #     data = data[:self.dim,:self.n_channels]
             ## augmentation
             if self.augmentation == True:
                 if i <= self.batch_size//2:
-                    if self.shift_event_r and dataset.attrs['trace_category'] == 'earthquake_local':
+                    if self.shift_event_r and 'earthquake' in dataset.attrs['trace_category']:
                         data, spt, sst, coda_end = self._shift_event(data, spt, sst, coda_end, snr, self.shift_event_r/2);
                     if self.norm_mode:
                         data = self._normalize(data, self.norm_mode)
                 else:
-                    if dataset.attrs['trace_category'] == 'earthquake_local':
+                    if 'earthquake' in dataset.attrs['trace_category']:
                         if self.shift_event_r:
                             data, spt, sst, coda_end = self._shift_event(data, spt, sst, coda_end, snr, self.shift_event_r);
 
@@ -548,7 +632,8 @@ class DataGenerator(keras.utils.Sequence):
             X[i, :, :] = data[:,:self.n_channels]
 
             ## labeling
-            if 'earthquake' in dataset.attrs['trace_category']:
+            #if 'earthquake' in dataset.attrs['trace_category']:
+            if ID.split('_')[-1] == 'EV':
                 if self.label_type == 'gaussian':
                     for phase in self.phase_type:
                         if phase == 'P':
@@ -1745,39 +1830,55 @@ class DataGeneratorTest(keras.utils.Sequence):
 
         # Generate data
         for i, ID in enumerate(list_IDs_temp):
-            if ID.split('_')[-1] != 'NO':
-                dataset = fl.get('data/'+str(ID))
-                data = np.array(dataset)
 
-            elif ID.split('_')[-1] == 'NO':
-                dataset = fl.get('data/'+str(ID))
-                data = np.array(dataset)
-            if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
-                data = np.transpose(data)
-            # check data shape
-            if data.shape[0] < self.dim:
-                duplicate_len = int(self.dim - data.shape[0])
-                data = np.concatenate((data, data[0:duplicate_len, :]))
-            if data.shape[0] > self.dim:
-                data = data[0:self.dim, :]
+            dataset = fl.get('data/'+str(ID))
+            data = np.array(dataset)
+            if data.ndim == 1:
+                # original trace could be 1-component, i.e., (6000,) or (6000)
+                dat_channel = 1
+                dat_dim = len(data)
+            else:
+                # convert data format to the one that is used in the prediction
+                if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
+                    data = np.transpose(data)
+                # more than 1 component trace
+                dat_channel = data.shape[1]
+                dat_dim = data.shape[0]
+            if dat_channel > self.n_channels:
+                dat_channel = self.n_channels
+            temp = data
+            data = np.zeros((self.dim, self.n_channels))
+            attr_value = dataset.attrs.get('component', None)
+            if attr_value is not None:
+                # label contains component information
+                if attr_value == 'Z':
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 2] = temp
+                    else:
+                        data[:, 2] = temp[:self.dim]
+                if attr_value == 'N' or attr_value == '2':
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 1] = temp
+                    else:
+                        data[:, 1] = temp[:self.dim]
+                if attr_value == 'E' or attr_value == '0':
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 0] = temp
+                    else:
+                        data[:, 0] = temp[:self.dim]
+            else:
+                if dat_channel == 1:
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0]] = temp
+                    else:
+                        data[:, 0] = temp[:self.dim]
+                else:
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 0:dat_channel] = temp[:, 0:dat_channel]
+                    else:
+                        data[:, 0:dat_channel] = temp[:self.dim, 0:dat_channel]
             if self.norm_mode:
                 data = self.normalize(data, self.norm_mode)
-
-            # augment when trace channel is less than required n_channels
-            if data.ndim == 1:
-                dat_channel = 1
-            else:
-                dat_channel = data.shape[1]
-            if dat_channel < self.n_channels:
-                temp = data
-                data = np.zeros((self.dim, self.n_channels))
-                if dat_channel == 1:
-                    data[:, 0] = temp.flatten()
-                else:
-                    data[:, 0:dat_channel] = temp
-                if dat_channel < self.n_channels:
-                    for i in range(dat_channel, temp.shape[1]):
-                        data[:, i] = data[:, 0]
             X[i, :, :] = data[:, :self.n_channels]
 
         fl.close()
@@ -1880,32 +1981,56 @@ class DataGeneratorPrediction(keras.utils.Sequence):
             data = np.array(dataset)
             if data.shape[0] <= 10:  # assume the original shape is (n_channels, n_samples )
                 data = np.transpose(data)
-            # check data shape e.g, sample length < required n_samples, start duplicating
-            if data.shape[0] < self.dim:
-                duplicate_len = int(self.dim - data.shape[0])
-                data = np.concatenate((data, data[0:duplicate_len, :]))
-            else:
-                # check data shape e.g, sample length > required n_samples, start trimming
-                if data.shape[0] > self.dim:
-                    data = data[0:self.dim, :]
-            if self.norm_mode:
-                data = self.normalize(data, self.norm_mode)
             # Hao update Nov 6 2022
             # augment when trace channel is less than required n_channels
             if data.ndim == 1:
                 dat_channel = 1
             else:
                 dat_channel = data.shape[1]
-            if dat_channel < self.n_channels:
-                temp = data
-                data = np.zeros((self.dim, self.n_channels))
+            if dat_channel > self.n_channels:
+                dat_channel = self.n_channels
+            temp = data
+            data = np.zeros((self.dim, self.n_channels))
+            attr_value = dataset.attrs.get('component', None)
+            if attr_value is not None:
+                # label contains component information
+                if attr_value == 'Z':
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 2] = temp
+                    else:
+                        data[:, 2] = temp[:self.dim]
+                if attr_value == 'N' or attr_value == '2':
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 1] = temp
+                    else:
+                        data[:, 1] = temp[:self.dim]
+                if attr_value == 'E' or attr_value == '0':
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 0] = temp
+                    else:
+                        data[:, 0] = temp[:self.dim]
+            else:
                 if dat_channel == 1:
-                    data[:, 0] = temp.flatten()
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0]] = temp
+                    else:
+                        data[:, 0] = temp[:self.dim]
                 else:
-                    data[:, 0:dat_channel] = temp
-                if dat_channel < self.n_channels:
-                    for i in range(dat_channel, temp.shape[1]):
-                        data[:, i] = data[:, 0]
+                    if temp.shape[0] < self.dim:
+                        data[:temp.shape[0], 0:dat_channel] = temp[:, 0:dat_channel]
+                    else:
+                        data[:, 0:dat_channel] = temp[:self.dim, 0:dat_channel]
+
+            # # check data shape e.g, sample length < required n_samples, start duplicating
+            # if data.shape[0] < self.dim:
+            #     duplicate_len = int(self.dim - data.shape[0])
+            #     data = np.concatenate((data, data[0:duplicate_len, :]))
+            # else:
+            #     # check data shape e.g, sample length > required n_samples, start trimming
+            #     if data.shape[0] > self.dim:
+            #         data = data[0:self.dim, :]
+            if self.norm_mode:
+                data = self.normalize(data, self.norm_mode)
             X[i, :, :] = data[:,:self.n_channels]
 
         fl.close()

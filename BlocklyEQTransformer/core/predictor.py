@@ -51,6 +51,7 @@ from .EqT_utils import DataGeneratorPrediction, picker, generate_arrays_from_fil
 from .EqT_utils import f1, SeqSelfAttention, FeedForward, LayerNormalization
 from tqdm import tqdm
 from datetime import datetime, timedelta
+from obspy.core import UTCDateTime
 import multiprocessing
 import contextlib
 import sys
@@ -76,7 +77,7 @@ def predictor(input_dir=None,
               detection_threshold=0.3,
               P_threshold=0.1,
               S_threshold=0.1,
-              number_of_plots=10,
+              number_of_plots=20,
               plot_mode='time',
               estimate_uncertainty=False,
               number_of_sampling=5,
@@ -628,8 +629,6 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
         evi =  new_list[ts]
         dataset = pred_set[evi]
         dat = np.array(dataset)
-        # dat_channel: int, numbers of channel
-        # dat_dim: int, numbers of dimention
         if dat.ndim == 1:
             # original trace could be 1-component, i.e., (6000,) or (6000)
             dat_channel = 1
@@ -641,26 +640,40 @@ def _gen_writer(new_list, args, prob_dic, pred_set, HDF_PROB, predict_writer, sa
             # more than 1 component trace
             dat_channel = dat.shape[1]
             dat_dim = dat.shape[0]
-        # check data shape e.g, sample length < required n_samples, start duplicating
-        if dat_dim < args["input_dimention"][0]:
-            duplicate_len = int(args["input_dimention"][0] - dat_dim)
-            dat = np.concatenate((dat, dat[0:duplicate_len, :]))
+        if dat_channel > args["input_dimention"][1]:
+            dat_channel = args["input_dimention"][1]
+        # check data shape
+        temp = dat
+        dat = np.zeros((args["input_dimention"][0], args["input_dimention"][1]))
+        attr_value = dataset.attrs.get('component', None)
+        if attr_value is not None:
+            # label contains component information
+            if attr_value == 'Z':
+                if temp.shape[0] < args["input_dimention"][0]:
+                    dat[:temp.shape[0], 2] = temp
+                else:
+                    dat[:, 2] = temp[:args["input_dimention"][0]]
+            if attr_value == 'N' or attr_value == '2':
+                if temp.shape[0] < args["input_dimention"][0]:
+                    dat[:temp.shape[0], 1] = temp
+                else:
+                    dat[:, 1] = temp[:args["input_dimention"][0]]
+            if attr_value == 'E' or attr_value == '0':
+                if temp.shape[0] < args["input_dimention"][0]:
+                    dat[:temp.shape[0], 0] = temp
+                else:
+                    dat[:, 0] = temp[:args["input_dimention"][0]]
         else:
-            # check data shape e.g, sample length > required n_samples, start trimming
-            if dat_dim > args["input_dimention"][0]:
-                dat = dat[0:args["input_dimention"][0], :]
-        # Hao update Nov 6 2022
-        # augment when trace channel is less than required n_channels
-        if dat_channel < args["input_dimention"][1]:
-            temp = dat
-            dat = np.zeros((args["input_dimention"][0], args["input_dimention"][1]))
             if dat_channel == 1:
-                dat[:, 0] = temp.flatten()
+                if temp.shape[0] < args["input_dimention"][0]:
+                    dat[:temp.shape[0]] = temp
+                else:
+                    dat[:, 0] = temp[:args["input_dimention"][0]]
             else:
-                dat[:, 0:dat_channel] = temp
-            if dat_channel < args["input_dimention"][1]:
-                for i in range(dat_channel, args["input_dimention"][1]):
-                    dat[:, i] = dat[:, 0]
+                if temp.shape[0] < args["input_dimention"][0]:
+                    dat[:temp.shape[0], 0:dat_channel] = temp[:, 0:dat_channel]
+                else:
+                    dat[:, 0:dat_channel] = temp[:args["input_dimention"][0], 0:dat_channel]
 
         if args['output_probabilities']:
 
@@ -818,8 +831,10 @@ def _output_writter_prediction(dataset, predict_writer, csvPr, matches, snr, det
 
 
     """
-
-    trace_name = dataset.attrs["trace_name"]
+    try:
+        trace_name = dataset.attrs["trace_name"]
+    except KeyError:
+        trace_name = dataset.name
     try:
         station_name = dataset.attrs["receiver_code"]
         station_lat = dataset.attrs["receiver_latitude"]
@@ -839,15 +854,23 @@ def _output_writter_prediction(dataset, predict_writer, csvPr, matches, snr, det
         network_name = stainfo.split('.')[2]
     instrument_type = trace_name.split('_')[2]
     instrument_type = "{:<2}".format(instrument_type)
+    # try:
+    #     start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+    # except Exception:
+    #     if not start_time == 0:
+    #         start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+    #     else:
+    #         start_time = trace_name.split('_')[1]
+    #         start_time = start_time[:14]
+    #         start_time = datetime.strptime(start_time, '%Y%m%d%H%M%S')
     try:
-        start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S.%f')
+        start_time = UTCDateTime(start_time)
+        start_time = start_time.datetime
     except Exception:
         if not start_time == 0:
-            start_time = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
+            start_time = UTCDateTime(start_time)
         else:
-            start_time = trace_name.split('_')[1]
-            start_time = start_time[:14]
-            start_time = datetime.strptime(start_time, '%Y%m%d%H%M%S')
+            start_time = trace_name.split
 
     def _date_convertor(r):
         if isinstance(r, str):

@@ -586,8 +586,6 @@ def tester(input_hdf5=None,
                     pick_errors3 = None
                 if plt_n < args['number_of_plots'] and (matches or matches2 or matches3):
                     dat = np.array(dataset)
-                    # dat_channel: int, numbers of channel
-                    # dat_dim: int, numbers of dimention
                     if dat.ndim == 1:
                         # original trace could be 1-component, i.e., (6000,) or (6000)
                         dat_channel = 1
@@ -599,27 +597,40 @@ def tester(input_hdf5=None,
                         # more than 1 component trace
                         dat_channel = dat.shape[1]
                         dat_dim = dat.shape[0]
-                    # check data shape e.g, sample length < required n_samples, start duplicating
-                    if dat_dim < args["input_dimention"][0]:
-                        duplicate_len = int(args["input_dimention"][0] - dat_dim)
-                        dat = np.concatenate((dat, dat[0:duplicate_len, :]))
+                    if dat_channel > args["input_dimention"][1]:
+                        dat_channel = args["input_dimention"][1]
+                    # check data shape
+                    temp = dat
+                    dat = np.zeros((args["input_dimention"][0], args["input_dimention"][1]))
+                    attr_value = dataset.attrs.get('component', None)
+                    if attr_value is not None:
+                        # label contains component information
+                        if attr_value == 'Z':
+                            if temp.shape[0] < args["input_dimention"][0]:
+                                dat[:temp.shape[0], 2] = temp
+                            else:
+                                dat[:, 2] = temp[:args["input_dimention"][0]]
+                        if attr_value == 'N' or attr_value == '2':
+                            if temp.shape[0] < args["input_dimention"][0]:
+                                dat[:temp.shape[0], 1] = temp
+                            else:
+                                dat[:, 1] = temp[:args["input_dimention"][0]]
+                        if attr_value == 'E' or attr_value == '0':
+                            if temp.shape[0] < args["input_dimention"][0]:
+                                dat[:temp.shape[0], 0] = temp
+                            else:
+                                dat[:, 0] = temp[:args["input_dimention"][0]]
                     else:
-                        # check data shape e.g, sample length > required n_samples, start trimming
-                        if dat_dim > args["input_dimention"][0]:
-                            dat = dat[0:args["input_dimention"][0], :]
-                    # Hao update Nov 6 2022
-                    # augment when trace channel is less than required n_channels
-                    if dat_channel < args["input_dimention"][1]:
-                        temp = dat
-                        dat = np.zeros((args["input_dimention"][0], args["input_dimention"][1]))
                         if dat_channel == 1:
-                            dat[:, 0] = temp.flatten()
+                            if temp.shape[0] < args["input_dimention"][0]:
+                                dat[:temp.shape[0]] = temp
+                            else:
+                                dat[:, 0] = temp[:args["input_dimention"][0]]
                         else:
-                            dat[:, 0:dat_channel] = temp
-                        if dat_channel < args["input_dimention"][1]:
-                            for i in range(dat_channel, args["input_dimention"][1]):
-                                dat[:, i] = dat[:, 0]
-
+                            if temp.shape[0] < args["input_dimention"][0]:
+                                dat[:temp.shape[0], 0:dat_channel] = temp[:, 0:dat_channel]
+                            else:
+                                dat[:, 0:dat_channel] = temp[:args["input_dimention"][0], 0:dat_channel]
                     _plotter_mul_prediction(dat, evi, args, save_figs, matches, keys, matches2, matches3,
                                         prob_dic['DD_mean'][ts],
                                         prob_dic['PP_mean'][ts],
@@ -816,16 +827,23 @@ def _output_writter_test(args,
         Sn_prob3 = None
         Sn_unc3 = None
         Sn_error3 = None
-    trace_name = dataset.attrs["trace_name"]
+    # trace_name = dataset.attrs["trace_name"]
+    trace_name = evi
     stainfo = trace_name.split('_')[0]
     station_name = stainfo.split('.')[0]
     network_code = stainfo.split('.')[-1]
     receiver_type = trace_name.split('_')[2]
     receiver_type = "{:<2}".format(receiver_type)
-    source_id = None
-    source_distance_km = None
+    try:
+        source_id = dataset.attrs["source_id"]
+        source_distance_km = dataset.attrs["source_distance_km"]
+        source_magnitude = dataset.attrs["source_magnitude"]
+    except:
+        source_id = None
+        source_distance_km = None
+        source_magnitude = None
     trace_category = trace_name.split('_')[-1]
-    source_magnitude = -1
+
     p_status = 'manual'
     p_weight = None
     s_status = 'manual'
