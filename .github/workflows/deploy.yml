@@ -38,6 +38,7 @@ jobs:
             
       - name: Install
         run: |
+          conda info
           conda config --add channels conda-forge
           pip install -e .
           
