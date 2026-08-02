@@ -47,7 +47,7 @@ setup(
         'h5py==3.14.0',
         'ipywidgets==8.1.8',
         'jupyter==1.1.1',
-        'keras==3.15.0',
+        'keras==3.15.1',
         'matplotlib==3.11.1',
         'numpy==2.5.1',
         'obspy==1.5.0',
