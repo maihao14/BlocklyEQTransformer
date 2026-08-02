@@ -190,11 +190,8 @@ def mseed_predictor(input_dir='downloads_mseeds',
 
     if args['gpuid']:
         os.environ['CUDA_VISIBLE_DEVICES'] = '{}'.format(args['gpuid'])
-        tf.Session(config=tf.ConfigProto(log_device_placement=True))
-        config = tf.ConfigProto()
-        config.gpu_options.allow_growth = True
-        config.gpu_options.per_process_gpu_memory_fraction = float(args['gpu_limit'])
-        K.tensorflow_backend.set_session(tf.Session(config=config))
+        for gpu in tf.config.list_physical_devices('GPU'):
+            tf.config.experimental.set_memory_growth(gpu, True)
 
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
@@ -233,7 +230,7 @@ def mseed_predictor(input_dir='downloads_mseeds',
                                         })
     model.compile(loss = args['loss_types'],
                   loss_weights = args['loss_weights'],
-                  optimizer = Adam(lr = 0.001),
+                  optimizer = Adam(learning_rate=0.001),
                   metrics = [f1])
     # print('*** Loading is complete!', flush=True)
     eqt_logger.info(f"*** Loading is complete!")

@@ -38,7 +38,7 @@ where `Blockly Earthquake Transformer` can be installed along with its dependenc
 - Create a environment called `bet`:
 
 ```bash
-conda create -n bet python=3.7
+conda create -n bet python=3.12
 ```
 
 - Activate the newly created environment:

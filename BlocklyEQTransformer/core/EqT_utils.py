@@ -35,7 +35,6 @@ from keras import backend as K
 from keras.layers import add, Activation, LSTM, Conv1D
 from keras.layers import MaxPooling1D, UpSampling1D, Cropping1D, SpatialDropout1D, Bidirectional, BatchNormalization
 from keras.models import Model
-from keras.utils import multi_gpu_model
 from keras.optimizers import Adam
 from obspy.signal.trigger import trigger_onset,recursive_sta_lta
 import matplotlib
@@ -2523,7 +2522,7 @@ class LayerNormalization(keras.layers.Layer):
         return input_mask
 
     def build(self, input_shape):
-        self.input_spec = keras.engine.InputSpec(shape=input_shape)
+        self.input_spec = keras.InputSpec(shape=input_shape)
         shape = input_shape[-1:]
         if self.scale:
             self.gamma = self.add_weight(
@@ -3152,13 +3151,9 @@ class cred2():
         S = Conv1D(1, 11, padding = self.padding, activation='sigmoid', name='picker_S')(decoder_S)
 
 
-        if self.multi_gpu == True:
-            parallel_model = Model(inputs=inp, outputs=[d, P, S])
-            model = multi_gpu_model(parallel_model, gpus=self.gpu_number)
-        else:
-            model = Model(inputs=inp, outputs=[d, P, S])
+        model = Model(inputs=inp, outputs=[d, P, S])
 
         model.compile(loss=self.loss_types, loss_weights=self.loss_weights,
-            optimizer=Adam(lr=_lr_schedule(0)), metrics=[f1])
+            optimizer=Adam(learning_rate=_lr_schedule(0)), metrics=[f1])
 
         return model

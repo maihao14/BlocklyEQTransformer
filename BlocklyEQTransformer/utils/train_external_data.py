@@ -9,7 +9,7 @@ Created on Wed Feb 16 15:49:08 2022
 
 hdf5_file_path = './ModelsAndSampleData/100samples.hdf5'
 csv_file_path = './ModelsAndSampleData/100samples.csv'
-from EQTransformer.core.trainer import trainer
+from BlocklyEQTransformer.core.trainer import trainer
 trainer(input_hdf5=hdf5_file_path,
         input_csv=csv_file_path,
         output_name='ps_samples_trainer',                
@@ -33,7 +33,7 @@ trainer(input_hdf5=hdf5_file_path,
         gpu_limit=None,
         phase_types=['P','S'])
 #%% Train to Test
-from EQTransformer.core.tester import tester
+from BlocklyEQTransformer.core.tester import tester
 tester(input_hdf5='./ModelsAndSampleData/100samples.hdf5',
        input_testset='./ps_samples_trainer_outputs/test.npy',
        input_model='./ps_samples_trainer_outputs/final_model.h5',
@@ -53,7 +53,7 @@ tester(input_hdf5='./ModelsAndSampleData/100samples.hdf5',
        gpuid=None,
        gpu_limit=None)
 #%% test
-from EQTransformer.core.tester import tester
+from BlocklyEQTransformer.core.tester import tester
 tester(input_hdf5='./ModelsAndSampleData/100samples.hdf5',
        input_testset='./samples_trainer_outputs/test.npy',
        input_model='./samples_trainer_outputs/final_model.h5',
@@ -73,7 +73,7 @@ tester(input_hdf5='./ModelsAndSampleData/100samples.hdf5',
 
 
 #%% Detection
-from EQTransformer.core.predictor import predictor
+from BlocklyEQTransformer.core.predictor import predictor
 predictor(input_dir='./ModelsAndSampleData',   
          input_model='./samples_trainer_outputs/final_model.h5',
          output_dir='tl_detections_p',

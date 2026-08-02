@@ -352,7 +352,7 @@ def _doubleChecking(station_list, detections, preprocessed_dir, moving_window, t
                     new_picks['s_unc'] = None
                     new_picks['s_snr'] = None
                     new_picks['amp'] = None
-                    detections = detections.append(new_picks , ignore_index=True)      
+                    detections = pd.concat([detections, new_picks], ignore_index=True)
     return detections                    
                             
                             
