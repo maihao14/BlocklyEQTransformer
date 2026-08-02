@@ -44,7 +44,7 @@ setup(
     packages=find_packages(),
     keywords='Seismology, Earthquakes Detection, Phase Picking, Deep Learning',
     install_requires=[
-        'h5py==3.14.0',
+        'h5py==3.16.0',
         'ipywidgets==8.1.8',
         'jupyter==1.1.1',
         'keras==3.15.0',
