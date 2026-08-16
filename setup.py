@@ -49,7 +49,7 @@ setup(
         'jupyter==1.1.1',
         'keras==3.15.0',
         'matplotlib==3.11.1',
-        'numpy==2.5.1',
+        'numpy==2.5.2',
         'obspy==1.5.0',
         'pandas==3.0.5',
         'protobuf==7.35.1',
