@@ -52,7 +52,7 @@ setup(
         'numpy==2.5.1',
         'obspy==1.5.0',
         'pandas==3.0.5',
-        'protobuf==7.35.1',
+        'protobuf==7.36.0',
         'pytest==9.1.1',
         'scipy==1.18.0',
         'tensorflow==2.21.0',
